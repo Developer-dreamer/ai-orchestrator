@@ -16,3 +16,8 @@ To check whether everything is correct check the logs of the container inside do
 the app should start with appropriate message. 
 Make `GET` request via **Postman** or any other tool you like to the `http://localhost:8080/health` endpoint. 
 If response **200** everything is fine.
+
+## Redis integration
+For now Redis was connected to the project just for test. Next steps will be complete integration with "Worker microservice".
+It will be communication with the API service in an asynchronous manner reading from Redis and processing user prompts.
+This idea is faster emulation of conventional Message Brokers like RabbitMQ (both in terms of development and processing speed).
