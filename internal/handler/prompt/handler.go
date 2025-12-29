@@ -2,16 +2,27 @@ package prompt
 
 import (
 	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/domain"
 	"ai-orchestrator/internal/util"
+	"context"
+	"fmt"
 	"net/http"
 )
 
-type Handler struct {
-	logger common.Logger
+type Service interface {
+	PostPrompt(ctx context.Context, prompt domain.Prompt) error
 }
 
-func NewHandler(l common.Logger) *Handler {
-	return &Handler{l}
+type Handler struct {
+	logger  common.Logger
+	service Service
+}
+
+func NewHandler(l common.Logger, s Service) *Handler {
+	return &Handler{
+		logger:  l,
+		service: s,
+	}
 }
 
 func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
@@ -25,11 +36,14 @@ func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// process with service
+	domainPrompt := userPrompt.ToDomain()
+	err = h.service.PostPrompt(r.Context(), domainPrompt)
+	response := FromDomain(domainPrompt, Accepted, "Processing started")
+	if err != nil {
+		h.logger.Warn("failed to post prompt", "error", err, "domainPrompt", domainPrompt)
+		response.Status = Failed
+		response.Message = fmt.Sprintf("failed to start processing prompt: %v", err)
+	}
 
-	util.WriteJSONResponse(rw, http.StatusAccepted, &struct {
-		Message string
-	}{
-		Message: "Prompt accepted",
-	})
+	util.WriteJSONResponse(rw, http.StatusAccepted, response)
 }
