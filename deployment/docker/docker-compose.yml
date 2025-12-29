@@ -1,13 +1,15 @@
+name: ai-orchestrator
+
 services:
   app:
     build:
-      context: ..
+      context: ../../
       dockerfile: deployment/docker/Dockerfile
     container_name: api
     ports:
       - "8080:8080"
     env_file:
-      - ../.env
+      - ../../.env
     networks:
       - app-network
     depends_on:
