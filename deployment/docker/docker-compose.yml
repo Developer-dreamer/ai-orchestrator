@@ -1,0 +1,41 @@
+name: ai-orchestrator
+
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: deployment/docker/Dockerfile
+    container_name: api
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../../.env
+    networks:
+      - app-network
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    command: [ "redis-server", "--appendonly", "yes" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge
