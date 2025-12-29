@@ -3,6 +3,7 @@ package server
 import (
 	"ai-orchestrator/internal/config"
 	"ai-orchestrator/internal/handler/prompt"
+	"ai-orchestrator/internal/util"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
@@ -33,8 +34,13 @@ func registerRoutes(handler *prompt.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
+	r.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
 
 	return r
+}
+
+func healthCheck(rw http.ResponseWriter, _ *http.Request) {
+	util.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
 func GracefulShutdown(server *http.Server, logger *slog.Logger) {
