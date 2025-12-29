@@ -43,8 +43,13 @@ func registerRoutes(handler *promptHandler.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
+	r.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
 
 	return r
+}
+
+func healthCheck(rw http.ResponseWriter, _ *http.Request) {
+	util.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
 func GracefulShutdown(server *http.Server, logger *slog.Logger) {
