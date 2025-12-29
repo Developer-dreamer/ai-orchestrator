@@ -7,6 +7,8 @@ To run the compose file you are supposed to create `.env` file in the root direc
 next variables:
 ```dotenv
 PORT=8080
+REDIS_URI=redis:6379
+CACHE_TTL_MINUTES=5
 ```
 After this run: `docker compose -f deployment/docker/docker-compose.yml up --build -d`
 
