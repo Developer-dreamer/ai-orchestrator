@@ -1,14 +1,19 @@
 package main
 
 import (
-	"fmt"
+	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/server"
+	"log"
+	"log/slog"
 )
 
 func main() {
-	s := "gopher"
-	fmt.Printf("Hello and welcome, %s!\n", s)
-
-	for i := 1; i <= 5; i++ {
-		fmt.Println("i =", 100/i)
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
 	}
+	logger := cfg.ConfigureLogger(slog.LevelInfo)
+
+	srvr := server.SetupServer(cfg, logger)
+	server.GracefulShutdown(srvr, logger)
 }
