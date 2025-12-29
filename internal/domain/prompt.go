@@ -4,6 +4,6 @@ import "github.com/google/uuid"
 
 type Prompt struct {
 	ID     uuid.UUID
-	UserID string
+	UserID uuid.UUID
 	Text   string
 }

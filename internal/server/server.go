@@ -2,8 +2,9 @@ package server
 
 import (
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/handler/prompt"
-	"ai-orchestrator/internal/util"
+	promptHandler "ai-orchestrator/internal/handler/prompt"
+	"ai-orchestrator/internal/infra/redis"
+	promptService "ai-orchestrator/internal/service/prompt"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
@@ -16,9 +17,17 @@ import (
 )
 
 func SetupServer(cfg *config.Config, logger *slog.Logger) *http.Server {
-	promptHandler := prompt.NewHandler(logger)
+	redisClient, err := config.ConnectToRedis(cfg)
+	if err != nil {
+		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
+		os.Exit(1)
+	}
 
-	r := registerRoutes(promptHandler)
+	rds := redis.NewService(logger, redisClient)
+	ps := promptService.NewService(logger, rds, cfg)
+	ph := promptHandler.NewHandler(logger, ps)
+
+	r := registerRoutes(ph)
 	logger.Info("Starting server")
 
 	return &http.Server{
@@ -30,7 +39,7 @@ func SetupServer(cfg *config.Config, logger *slog.Logger) *http.Server {
 	}
 }
 
-func registerRoutes(handler *prompt.Handler) *mux.Router {
+func registerRoutes(handler *promptHandler.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
