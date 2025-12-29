@@ -18,25 +18,16 @@ func (r *CreateRequest) ToDomain() domain.Prompt {
 	}
 }
 
-type Status string
-
-const (
-	Accepted Status = "accepted"
-	Failed   Status = "failed"
-)
-
 type ResultResponse struct {
 	PromptID uuid.UUID `json:"prompt_id"`
 	UserID   uuid.UUID `json:"user_id"`
-	Status   Status    `json:"status"`
 	Message  string    `json:"message"`
 }
 
-func FromDomain(domain domain.Prompt, status Status, message string) ResultResponse {
+func FromDomain(domain domain.Prompt, message string) ResultResponse {
 	return ResultResponse{
 		PromptID: domain.ID,
 		UserID:   domain.UserID,
-		Status:   status,
 		Message:  message,
 	}
 }

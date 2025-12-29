@@ -5,7 +5,6 @@ import (
 	"ai-orchestrator/internal/domain"
 	"ai-orchestrator/internal/util"
 	"context"
-	"fmt"
 	"net/http"
 )
 
@@ -38,12 +37,12 @@ func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 
 	domainPrompt := userPrompt.ToDomain()
 	err = h.service.PostPrompt(r.Context(), domainPrompt)
-	response := FromDomain(domainPrompt, Accepted, "Processing started")
 	if err != nil {
 		h.logger.Warn("failed to post prompt", "error", err, "domainPrompt", domainPrompt)
-		response.Status = Failed
-		response.Message = fmt.Sprintf("failed to start processing prompt: %v", err)
+		util.WriteJSONError(rw, http.StatusInternalServerError, "failed to post prompt", err)
+		return
 	}
 
+	response := FromDomain(domainPrompt, "Processing started")
 	util.WriteJSONResponse(rw, http.StatusAccepted, response)
 }

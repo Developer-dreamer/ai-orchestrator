@@ -33,5 +33,7 @@ func (s *Service) PostPrompt(ctx context.Context, prompt domain.Prompt) error {
 	if err != nil {
 		s.logger.Error("Failed to set cache", "error", err)
 	}
+
+	// Later there will be no return value, since error will be handled automatically via the Outbox pattern.
 	return nil
 }

@@ -73,8 +73,8 @@ func (s *Service) Set(ctx context.Context, cacheKey string, data any, ttl time.D
 		return err
 	}
 
-	s.logger.Info("cache set", "key", cacheKey, "data", data, "service", "cacheService")
-
+	s.logger.Debug("cache set", "key", cacheKey, "data", data, "service", "cacheService")
+	s.logger.Info("cache set", "key", cacheKey, "valueSize", len(value), "service", "cacheService")
 	return nil
 }
 

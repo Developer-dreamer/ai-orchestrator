@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"go-simpler.org/env"
 	"log/slog"
 	"os"
@@ -31,7 +32,10 @@ func (cfg *Config) ConfigureLogger(level slog.Level) *slog.Logger {
 }
 
 func (cfg *Config) GetCacheTTL() time.Duration {
-	minutes, _ := strconv.Atoi(cfg.CacheTTLMinutes)
+	minutes, err := strconv.Atoi(cfg.CacheTTLMinutes)
+	if err != nil {
+		fmt.Errorf("consider using numeric value for CACHE_TTL_MINUTES: %s", cfg.CacheTTLMinutes)
+	}
 	if minutes <= 0 {
 		minutes = 5
 	}
