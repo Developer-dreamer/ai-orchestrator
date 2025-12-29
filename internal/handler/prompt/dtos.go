@@ -10,10 +10,10 @@ type CreateRequest struct {
 	Prompt string `json:"prompt"`
 }
 
-func (r *CreateRequest) ToDomain(request CreateRequest) domain.Prompt {
+func (r *CreateRequest) ToDomain() domain.Prompt {
 	return domain.Prompt{
 		ID:     uuid.New(),
-		UserID: request.UserID,
-		Text:   request.Prompt,
+		UserID: r.UserID,
+		Text:   r.Prompt,
 	}
 }
