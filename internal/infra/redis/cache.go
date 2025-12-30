@@ -1,32 +1,12 @@
 package redis
 
 import (
-	"ai-orchestrator/internal/common"
 	"context"
 	"encoding/json"
 	"errors"
 	"github.com/redis/go-redis/v9"
 	"time"
 )
-
-var (
-	ErrCacheMiss      = errors.New("cache miss")
-	ErrInvalidKey     = errors.New("invalid cache key")
-	ErrMarshalFailed  = errors.New("failed to marshal data")
-	ErrCacheSetFailed = errors.New("failed to set cache")
-)
-
-type Service struct {
-	logger common.Logger
-	client *redis.Client
-}
-
-func NewService(logger common.Logger, client *redis.Client) *Service {
-	return &Service{
-		logger: logger,
-		client: client,
-	}
-}
 
 func (s *Service) Get(ctx context.Context, key string) (string, error) {
 	if key == "" {
