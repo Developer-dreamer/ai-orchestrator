@@ -56,6 +56,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.WorkerID, c.groupID)
 			if err != nil {
 				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id", c.groupID, "worker_id", c.WorkerID)
+				// TODO implement exponential backoff
 				time.Sleep(time.Second)
 				continue
 			}
