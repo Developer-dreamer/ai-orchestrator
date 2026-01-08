@@ -27,7 +27,8 @@ func LoadConfig() (*Config, error) {
 	if err != nil || minutes <= 0 {
 		return nil, fmt.Errorf("invalid value for cache_ttl_minutes (must be positive integer): %s", cfg.CacheTTLMinutes)
 	}
-	if _, err = strconv.Atoi(cfg.NumberOfWorkers); err != nil {
+	workers, err := strconv.Atoi(cfg.NumberOfWorkers)
+	if err != nil || workers < 1 {
 		return nil, fmt.Errorf("invalid value for number_of_workers: %s", cfg.NumberOfWorkers)
 	}
 	return cfg, nil
