@@ -64,10 +64,21 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				continue
 			}
 
-			// TODO: process
-			c.logger.Info("Read message", "message_id", messageID)
+			// Process the message before acknowledging it.
+			if err := c.processMessage(ctx, messageID, entity); err != nil {
+				c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
+				continue
+			}
 
-			c.tasks.Ack(ctx, c.streamID, c.groupID, messageID)
+			if err := c.tasks.Ack(ctx, c.streamID, c.groupID, messageID); err != nil {
+				c.logger.Error("Failed to ack message", "message_id", messageID, "error", err)
+			}
 		}
 	}
+}
+
+func (c *Consumer) processMessage(ctx context.Context, messageID, entity string) error {
+	// TODO: replace this placeholder with actual business logic for processing the message entity.
+	c.logger.Info("Processing message", "message_id", messageID, "entity", entity)
+	return nil
 }
