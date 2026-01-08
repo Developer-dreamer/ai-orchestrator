@@ -9,6 +9,8 @@ next variables:
 PORT=8080
 REDIS_URI=redis:6379
 CACHE_TTL_MINUTES=5
+REDIS_STREAM_ID=tasks
+NUMBER_OF_WORKERS=5
 ```
 After this run: `docker compose -f deployment/docker/docker-compose.yml up --build -d`
 
@@ -18,6 +20,9 @@ Make `GET` request via **Postman** or any other tool you like to the `http://loc
 If response **200** everything is fine.
 
 ## Redis integration
-For now Redis was connected to the project just for test. Next steps will be complete integration with "Worker microservice".
-It will be communication with the API service in an asynchronous manner reading from Redis and processing user prompts.
-This idea is faster emulation of conventional Message Brokers like RabbitMQ (both in terms of development and processing speed).
+Redis used as a message broker between microservices. I have chose it, because of its easy integration to project, compared to RabbitMQ. Also it is already
+used for caching, so there is no sense at this stage to integrate another complicated service. Moreover, Redis Streams, which were used in this implementation, 
+gives you in this concrete case faster processing than basic RabbitMQ. So consider all these aspects, I decided to not overengineer my project and stand by Redis Stream.
+
+Here is the underlying architecture of my approach:
+![](doc/diagram/microservice_communication.png)

@@ -5,6 +5,7 @@ import (
 	promptHandler "ai-orchestrator/internal/handler/prompt"
 	"ai-orchestrator/internal/infra/redis"
 	promptService "ai-orchestrator/internal/service/prompt"
+	"ai-orchestrator/internal/util"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
@@ -16,14 +17,20 @@ import (
 	"time"
 )
 
-func SetupServer(cfg *config.Config, logger *slog.Logger) *http.Server {
+func SetupHttpServer(cfg *config.Config, logger *slog.Logger) *http.Server {
 	redisClient, err := config.ConnectToRedis(cfg)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
 
-	rds := redis.NewService(logger, redisClient)
+	streamOptions := &redis.StreamConfig{
+		MaxBacklog:   1000,
+		UseDelApprox: true,
+		ReadCount:    1,
+		BlockTime:    5 * time.Second,
+	}
+	rds := redis.NewService(logger, redisClient, streamOptions)
 	ps := promptService.NewService(logger, rds, cfg)
 	ph := promptHandler.NewHandler(logger, ps)
 

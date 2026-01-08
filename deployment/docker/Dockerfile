@@ -3,6 +3,7 @@ FROM golang:1.24-alpine AS builder
 
 # Set environment variables
 #ARG BUILD_ENV="development"
+ARG SERVICE_PATH
 
 # Set the working directory
 WORKDIR /app
@@ -14,7 +15,7 @@ RUN go mod download
 # Copy the source code
 COPY . .
 # Build the Go application
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -trimpath -o orchestrator ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -trimpath -o orchestrator ./${SERVICE_PATH}
 
 # Stage 2: Final stage
 FROM alpine:3.19

@@ -1,13 +1,30 @@
 name: ai-orchestrator
 
 services:
-  app:
+  api:
     build:
       context: ../../
       dockerfile: deployment/docker/Dockerfile
+      args:
+        SERVICE_PATH: cmd/api
     container_name: api
     ports:
       - "8080:8080"
+    env_file:
+      - ../../.env
+    networks:
+      - app-network
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ../../
+      dockerfile: deployment/docker/Dockerfile
+      args:
+        SERVICE_PATH: cmd/worker
+    container_name: worker
     env_file:
       - ../../.env
     networks:

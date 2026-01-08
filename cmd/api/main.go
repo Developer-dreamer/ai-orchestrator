@@ -12,8 +12,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	logger := cfg.ConfigureLogger(slog.LevelInfo)
+	logger := cfg.ConfigureLogger(slog.LevelDebug)
 
-	srvr := server.SetupServer(cfg, logger)
+	srvr := server.SetupHttpServer(cfg, logger)
 	server.GracefulShutdown(srvr, logger)
 }
