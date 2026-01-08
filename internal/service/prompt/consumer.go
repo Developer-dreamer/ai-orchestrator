@@ -42,7 +42,7 @@ func NewConsumer(logger common.Logger, tasks TaskConsumer, group, worker string,
 func (c *Consumer) Consume(ctx context.Context) error {
 	c.logger.Info("Worker started", "id", c.WorkerID)
 
-	err := c.tasks.CreateGroup(context.Background(), c.streamID, c.groupID)
+	err := c.tasks.CreateGroup(ctx, c.streamID, c.groupID)
 	if err != nil {
 		return nil // TODO refactor
 	}
