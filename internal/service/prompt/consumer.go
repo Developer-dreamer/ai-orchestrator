@@ -18,7 +18,7 @@ type Consumer struct {
 	logger   common.Logger
 	tasks    TaskConsumer
 	streamID string
-	workerID string
+	WorkerID string
 	groupID  string
 }
 
@@ -35,23 +35,25 @@ func NewConsumer(logger common.Logger, tasks TaskConsumer, group, worker string,
 		tasks:    tasks,
 		streamID: cfg.RedisStreamID,
 		groupID:  group,
-		workerID: worker,
+		WorkerID: worker,
 	}
 }
 
 func (c *Consumer) Consume(ctx context.Context) error {
+	c.logger.Info("Worker started", "id", c.WorkerID)
+
 	err := c.tasks.CreateGroup(context.Background(), c.streamID, c.groupID)
 	if err != nil {
-		return nil
+		return nil // TODO refactor
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Info("Stopping consumer", "worker_id", c.workerID)
+			c.logger.Info("Stopping consumer", "worker_id", c.WorkerID)
 			return ctx.Err()
 		default:
-			messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.workerID, c.groupID)
+			messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.WorkerID, c.groupID)
 			if err != nil {
 				c.logger.Error("Read error", "error", err)
 				time.Sleep(time.Second)

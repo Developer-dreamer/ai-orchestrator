@@ -21,7 +21,7 @@ type Producer struct {
 }
 
 func NewService(l common.Logger, s TaskProducer, cfg *config.Config) *Producer {
-	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL()}
+	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL(), streamID: cfg.RedisStreamID}
 }
 
 func (s *Producer) PostPrompt(ctx context.Context, prompt domain.Prompt) error {

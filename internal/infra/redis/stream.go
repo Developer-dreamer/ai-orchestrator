@@ -28,7 +28,7 @@ type StreamConfig struct {
 // CreateGroup Creates consumer group and stream (if the last one does not exist).
 func (s *Service) CreateGroup(ctx context.Context, stream, group string) error {
 
-	const LatestMessage = "$" // Redis specific alias: starts from the last message
+	const LatestMessage = "0" // Redis specific alias: starts from the last message
 
 	_, err := s.client.XGroupCreateMkStream(ctx, stream, group, LatestMessage).Result()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
@@ -80,8 +80,15 @@ func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (
 	}).Result()
 
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", "", nil
+		}
+		if errors.Is(err, context.Canceled) {
+			return "", "", nil
+		}
+
 		s.logger.Error("Failed to consume message.", "error", err, "stream", stream, "group", group, "consumer", consumer)
-		return "", "", ErrReadFromGroup
+		return "", "", errors.Join(ErrReadFromGroup, err)
 	}
 
 	if len(res) == 0 || len(res[0].Messages) == 0 {

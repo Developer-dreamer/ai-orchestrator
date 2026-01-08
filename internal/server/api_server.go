@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func SetupServer(cfg *config.Config, logger *slog.Logger) *http.Server {
+func SetupHttpServer(cfg *config.Config, logger *slog.Logger) *http.Server {
 	redisClient, err := config.ConnectToRedis(cfg)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
