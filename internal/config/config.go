@@ -13,6 +13,7 @@ type Config struct {
 	AppPort         string `env:"PORT,required"`
 	RedisUri        string `env:"REDIS_URI,required"`
 	CacheTTLMinutes string `env:"CACHE_TTL_MINUTES" envDefault:"5"`
+	RedisStreamID   string `env:"REDIS_STREAM_ID" envDefault:"tasks"`
 }
 
 func LoadConfig() (*Config, error) {

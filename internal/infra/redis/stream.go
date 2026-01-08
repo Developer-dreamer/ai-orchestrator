@@ -26,13 +26,16 @@ type StreamConfig struct {
 }
 
 // CreateGroup Creates consumer group and stream (if the last one does not exist).
-func (s *Service) CreateGroup(ctx context.Context, stream, group, start string) error {
-	_, err := s.client.XGroupCreateMkStream(ctx, stream, group, start).Result()
+func (s *Service) CreateGroup(ctx context.Context, stream, group string) error {
+
+	const LatestMessage = "$" // Redis specific alias: starts from the last message
+
+	_, err := s.client.XGroupCreateMkStream(ctx, stream, group, LatestMessage).Result()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
-		s.logger.Warn("Failed to create consumer group.", "error", err)
+		s.logger.Warn("Failed to create consumer group.", "error", err, "stream", stream, "group", group)
 		return ErrCreateGroup
 	}
-	s.logger.Info("Created consumer group", "stream", stream, "group", group, "start", start)
+	s.logger.Info("Created consumer group", "stream", stream, "group", group)
 
 	return nil
 }
@@ -41,7 +44,7 @@ func (s *Service) CreateGroup(ctx context.Context, stream, group, start string) 
 func (s *Service) Publish(ctx context.Context, stream string, data any) error {
 	dataStr, err := json.Marshal(data)
 	if err != nil {
-		s.logger.Warn("Failed to convert data to json.", "error", err, "data", data)
+		s.logger.Error("Failed to convert data to json.", "error", err, "data", data)
 		return ErrInvalidPublishEntity
 	}
 
@@ -55,7 +58,7 @@ func (s *Service) Publish(ctx context.Context, stream string, data any) error {
 	}).Result()
 
 	if err != nil {
-		s.logger.Warn("Failed to publish message.", "error", err, "stream", stream, "data", data)
+		s.logger.Error("Failed to publish message.", "error", err, "stream", stream, "data", data)
 		return ErrPublishFailed
 	}
 
@@ -66,7 +69,7 @@ func (s *Service) Publish(ctx context.Context, stream string, data any) error {
 // Consume Consumes a message from the specified stream. Returns MessageID, Data, Error
 func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (string, string, error) {
 
-	const undeliveredMessages = ">"
+	const undeliveredMessages = ">" // Redis specific alias: starts from the unconsumed message
 
 	res, err := s.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Streams:  []string{stream, undeliveredMessages},
@@ -101,7 +104,7 @@ func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (
 func (s *Service) Ack(ctx context.Context, stream, group, messageId string) error {
 	_, err := s.client.XAck(ctx, stream, group, messageId).Result()
 	if err != nil {
-		s.logger.Warn("Acknowledgment failed", "stream", stream, "group", group, "messageId", messageId, "error", err)
+		s.logger.Error("Acknowledgment failed", "stream", stream, "group", group, "messageId", messageId, "error", err)
 		return ErrAcknowledgmentFailed
 	}
 	return nil
