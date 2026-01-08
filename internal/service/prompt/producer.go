@@ -20,7 +20,7 @@ type Producer struct {
 	streamID string
 }
 
-func NewService(l common.Logger, s TaskProducer, cfg *config.Config) *Producer {
+func NewProducer(l common.Logger, s TaskProducer, cfg *config.Config) *Producer {
 	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL(), streamID: cfg.RedisStreamID}
 }
 
