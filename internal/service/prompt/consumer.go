@@ -55,7 +55,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 		default:
 			messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.WorkerID, c.groupID)
 			if err != nil {
-				c.logger.Error("Read error", "error", err)
+				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id", c.groupID, "worker_id", c.WorkerID)
 				time.Sleep(time.Second)
 				continue
 			}
