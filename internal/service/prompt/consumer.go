@@ -2,7 +2,6 @@ package prompt
 
 import (
 	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/config"
 	"context"
 	"github.com/google/uuid"
 	"time"
@@ -22,7 +21,7 @@ type Consumer struct {
 	groupID  string
 }
 
-func NewConsumer(logger common.Logger, tasks TaskConsumer, group, worker string, cfg *config.Config) *Consumer {
+func NewConsumer(logger common.Logger, tasks TaskConsumer, redisStreamID, group, worker string) *Consumer {
 	if worker == "" {
 		worker = "worker-" + uuid.New().String()
 	}
@@ -33,7 +32,7 @@ func NewConsumer(logger common.Logger, tasks TaskConsumer, group, worker string,
 	return &Consumer{
 		logger:   logger,
 		tasks:    tasks,
-		streamID: cfg.RedisStreamID,
+		streamID: redisStreamID,
 		groupID:  group,
 		WorkerID: worker,
 	}

@@ -2,7 +2,7 @@ package prompt
 
 import (
 	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/config/api"
 	"ai-orchestrator/internal/domain"
 	"context"
 	"time"
@@ -20,7 +20,7 @@ type Producer struct {
 	streamID string
 }
 
-func NewProducer(l common.Logger, s TaskProducer, cfg *config.Config) *Producer {
+func NewProducer(l common.Logger, s TaskProducer, cfg *api.Config) *Producer {
 	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL(), streamID: cfg.RedisStreamID}
 }
 

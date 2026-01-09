@@ -11,7 +11,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - ../../.env
+      - ../../.api_env
     networks:
       - app-network
     depends_on:
@@ -26,7 +26,7 @@ services:
         SERVICE_PATH: cmd/worker
     container_name: worker
     env_file:
-      - ../../.env
+      - ../../.worker_env
     networks:
       - app-network
     depends_on:
@@ -49,6 +49,18 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+
+  jaeger:
+    image: jaegertracing/jaeger-agent
+    container_name: jaeger
+    ports:
+      - "14268:14268"
+      - "6831:6831"
+      - "5778:5778"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+    command: [ "--reporter.grpc.host-port=otel:14250" ]
 
 volumes:
   redis-data:

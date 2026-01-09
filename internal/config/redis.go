@@ -7,12 +7,12 @@ import (
 	"time"
 )
 
-func ConnectToRedis(cfg *Config) (*redis.Client, error) {
+func ConnectToRedis(redisUri string) (*redis.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	client := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisUri,
+		Addr: redisUri,
 		DB:   0,
 	})
 

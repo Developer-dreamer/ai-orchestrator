@@ -2,6 +2,7 @@ package server
 
 import (
 	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/config/api"
 	promptHandler "ai-orchestrator/internal/handler/prompt"
 	"ai-orchestrator/internal/infra/redis"
 	promptService "ai-orchestrator/internal/service/prompt"
@@ -17,10 +18,15 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *config.Config, logger *slog.Logger) *http.Server {
-	redisClient, err := config.ConnectToRedis(cfg)
+func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
+	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
+		os.Exit(1)
+	}
+	_, err = config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	if err != nil {
+		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
 
@@ -31,7 +37,7 @@ func SetupHttpServer(cfg *config.Config, logger *slog.Logger) *http.Server {
 		BlockTime:    5 * time.Second,
 	}
 	rds := redis.NewService(logger, redisClient, streamOptions)
-	ps := promptService.NewService(logger, rds, cfg)
+	ps := promptService.NewProducer(logger, rds, cfg)
 	ph := promptHandler.NewHandler(logger, ps)
 
 	r := registerRoutes(ph)

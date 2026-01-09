@@ -2,6 +2,7 @@ package server
 
 import (
 	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/config/worker"
 	"ai-orchestrator/internal/infra/redis"
 	"ai-orchestrator/internal/service/prompt"
 	"context"
@@ -15,10 +16,15 @@ import (
 	"time"
 )
 
-func SetupWorkers(cfg *config.Config, logger *slog.Logger) []*prompt.Consumer {
-	redisClient, err := config.ConnectToRedis(cfg)
+func SetupWorkers(cfg *worker.Config, logger *slog.Logger) []*prompt.Consumer {
+	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
+		os.Exit(1)
+	}
+	_, err = config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	if err != nil {
+		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
 
@@ -35,7 +41,7 @@ func SetupWorkers(cfg *config.Config, logger *slog.Logger) []*prompt.Consumer {
 	for i := 0; i < cfg.GetNumberOfWorkers(); i++ {
 		workerName := fmt.Sprintf("worker-%d", i)
 
-		w := prompt.NewConsumer(logger, rds, "ai_tasks_group", workerName, cfg)
+		w := prompt.NewConsumer(logger, rds, cfg.RedisStreamID, "ai_tasks_group", workerName)
 		workers = append(workers, w)
 	}
 
