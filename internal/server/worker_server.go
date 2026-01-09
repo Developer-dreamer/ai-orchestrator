@@ -23,6 +23,12 @@ func SetupWorkers(cfg *worker.Config, logger *slog.Logger) []*prompt.Consumer {
 		os.Exit(1)
 	}
 	_, err = config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	//defer func() {
+	//	err := closer.Close()
+	//	if err != nil {
+	//		logger.Error("Failed to close tracer.", "error", err)
+	//	}
+	//}()
 	if err != nil {
 		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)

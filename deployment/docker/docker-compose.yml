@@ -50,20 +50,51 @@ services:
     networks:
       - app-network
 
-  jaeger:
-    image: jaegertracing/jaeger-agent
-    container_name: jaeger
+  otel-collector:
+    # Use the 'contrib' image to ensure all receivers (like Jaeger) are present
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: "otel"
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ../../config/otel/config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "14268:14268"
-      - "6831:6831"
-      - "5778:5778"
+      - "55680:55680"
+      - "14250:14250" # gRPC
+      - "6831:6831/udp" # <--- Add this! Expose UDP for your Go App
+    networks:
+      - app-network
+    depends_on:
+      tempo:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: "grafana"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
     environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - LOG_LEVEL=debug
-    command: [ "--reporter.grpc.host-port=otel:14250" ]
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    networks:
+      - app-network
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: "tempo"
+    volumes:
+      - ../../config/tempo/tempo-local.yaml:/etc/tempo-local.yaml
+    command: [ "-config.file=/etc/tempo-local.yaml" ]
+    ports:
+      - "3100:3100"
+      - "3200:3200"
+    networks:
+      - app-network
 
 volumes:
   redis-data:
+  grafana-data:
 
 networks:
   app-network:

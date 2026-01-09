@@ -5,6 +5,7 @@ import (
 	"ai-orchestrator/internal/config/api"
 	promptHandler "ai-orchestrator/internal/handler/prompt"
 	"ai-orchestrator/internal/infra/redis"
+	"ai-orchestrator/internal/infra/transport/middleware"
 	promptService "ai-orchestrator/internal/service/prompt"
 	"ai-orchestrator/internal/util"
 	"context"
@@ -25,6 +26,12 @@ func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
 		os.Exit(1)
 	}
 	_, err = config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	//defer func() {
+	//	err := closer.Close()
+	//	if err != nil {
+	//		logger.Error("Failed to close tracer.", "error", err)
+	//	}
+	//}()
 	if err != nil {
 		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
@@ -54,6 +61,8 @@ func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
 
 func registerRoutes(handler *promptHandler.Handler) *mux.Router {
 	r := mux.NewRouter()
+
+	r.Use(middleware.TracingMiddleware)
 
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
 	r.HandleFunc("/health", healthCheck).Methods(http.MethodGet)

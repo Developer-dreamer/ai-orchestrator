@@ -4,12 +4,13 @@ import (
 	"ai-orchestrator/internal/common"
 	"context"
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"time"
 )
 
 type TaskConsumer interface {
 	CreateGroup(ctx context.Context, stream, group string) error
-	Consume(ctx context.Context, stream, consumer, group string) (string, string, error)
+	Consume(ctx context.Context, stream, consumer, group string) (string, string, string, error)
 	Ack(ctx context.Context, stream, group, messageId string) error
 }
 
@@ -52,7 +53,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			c.logger.Info("Stopping consumer", "worker_id", c.WorkerID)
 			return ctx.Err()
 		default:
-			messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.WorkerID, c.groupID)
+			traceId, messageID, entity, err := c.tasks.Consume(ctx, c.streamID, c.WorkerID, c.groupID)
 			if err != nil {
 				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id", c.groupID, "worker_id", c.WorkerID)
 				// TODO implement exponential backoff
@@ -64,15 +65,36 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				continue
 			}
 
+			c.logger.Info("Received message from stream", "trace_id", traceId, "message_id", messageID)
+
+			tracer := opentracing.GlobalTracer()
+			spanContext, _ := tracer.Extract(
+				opentracing.TextMap,
+				opentracing.TextMapCarrier{"uber-trace-id": traceId},
+			)
+
+			span := tracer.StartSpan(
+				"worker_process_task",
+				opentracing.FollowsFrom(spanContext),
+			)
+
+			// 3. Create the Trace-Aware Context
+			workerCtx := opentracing.ContextWithSpan(ctx, span)
+
 			// Process the message before acknowledging it.
-			if err := c.processMessage(ctx, messageID, entity); err != nil {
-				c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
+			err = c.processMessage(workerCtx, messageID, entity)
+			span.Finish()
+			if err == nil {
+				ackCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				ackErr := c.tasks.Ack(ackCtx, c.streamID, c.groupID, messageID)
+				cancel()
+
+				if ackErr != nil {
+					c.logger.Error("Failed to ack message", "message_id", messageID, "error", ackErr)
+				}
 				continue
 			}
-
-			if err := c.tasks.Ack(ctx, c.streamID, c.groupID, messageID); err != nil {
-				c.logger.Error("Failed to ack message", "message_id", messageID, "error", err)
-			}
+			//c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
 		}
 	}
 }
