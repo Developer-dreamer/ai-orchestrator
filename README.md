@@ -40,7 +40,7 @@ Here is the underlying architecture of my approach:
 ## Distributed Tracing
 The distributed tracing is implemented using Jaeger, OpenTelemetry and Grafana. Here is the workflow:
 ![](doc/diagram/tracing.png)
-To view the traces, you need to open `http://localhost:3000', then in login panel enter next credentials:
+To view the traces, you need to open `http://localhost:3000`, then in login panel enter next credentials:
 ```
 name: admin
 password: secret
