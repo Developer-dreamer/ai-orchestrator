@@ -10,13 +10,17 @@ type TaskProducer interface {
 	Publish(ctx context.Context, data any) error
 }
 
+type Repository interface {
+}
+
 type Service struct {
 	logger common.Logger
 	tasks  TaskProducer
+	repo   Repository
 }
 
-func NewService(l common.Logger, s TaskProducer) *Service {
-	return &Service{logger: l, tasks: s}
+func NewService(l common.Logger, s TaskProducer, repository Repository) *Service {
+	return &Service{logger: l, tasks: s, repo: repository}
 }
 
 func (s *Service) PostPrompt(ctx context.Context, prompt model.Prompt) error {

@@ -27,7 +27,7 @@ WORKDIR /app
 COPY --from=builder /app/orchestrator .
 
 # Copy migrations
-#COPY db/migrations /app/db/migrations
+COPY db/migrations /app/db/migrations
 
 # Copy private directory only if in development
 #RUN if [ "$BUILD_ENV" = "development" ]; then \
