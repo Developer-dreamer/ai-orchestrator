@@ -87,6 +87,8 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				continue
 			}
 
+			// Reset backoff after successful consume to restore optimal throughput.
+			currentBackoff = minBackoff
 			if entity == "" {
 				continue
 			}
