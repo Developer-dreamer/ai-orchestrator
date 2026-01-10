@@ -5,9 +5,7 @@ import (
 	"ai-orchestrator/internal/domain"
 	"ai-orchestrator/internal/util"
 	"context"
-	"fmt"
 	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
 	"net/http"
 )
 
@@ -42,10 +40,6 @@ func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 		opentracing.ChildOf(spanContext),
 	)
 	defer span.Finish()
-
-	if sc, ok := span.Context().(jaeger.SpanContext); ok {
-		fmt.Printf("Trace ID: %s\n", sc.TraceID().String())
-	}
 
 	ctxWithTrace := opentracing.ContextWithSpan(r.Context(), span)
 
