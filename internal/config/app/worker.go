@@ -1,4 +1,4 @@
-package worker
+package app
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-type Config struct {
+type WorkerConfig struct {
 	AppID           string `env:"APP_ID,required"`
 	RedisUri        string `env:"REDIS_URI,required"`
 	JaegerUri       string `env:"JAEGER_URI,required"`
@@ -16,8 +16,8 @@ type Config struct {
 	NumberOfWorkers string `env:"NUMBER_OF_WORKERS" envDefault:"1"`
 }
 
-func LoadConfig() (*Config, error) {
-	cfg := &Config{}
+func LoadWorkerConfig() (*WorkerConfig, error) {
+	cfg := &WorkerConfig{}
 	err := env.Load(cfg, nil)
 	if err != nil {
 		return nil, err
@@ -29,14 +29,14 @@ func LoadConfig() (*Config, error) {
 	return cfg, nil
 }
 
-func (cfg *Config) ConfigureLogger(level slog.Level) *slog.Logger {
+func (cfg *WorkerConfig) ConfigureLogger(level slog.Level) *slog.Logger {
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
 	return slog.New(handler)
 }
 
-func (cfg *Config) GetNumberOfWorkers() int {
+func (cfg *WorkerConfig) GetNumberOfWorkers() int {
 	// Error is deliberately ignored. All checks pass at the level of loading
 	workers, _ := strconv.Atoi(cfg.NumberOfWorkers)
 	return workers

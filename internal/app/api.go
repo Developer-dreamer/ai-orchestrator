@@ -1,14 +1,13 @@
-package server
+package app
 
 import (
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/api"
-	promptHandler "ai-orchestrator/internal/handler/prompt"
-	"ai-orchestrator/internal/infra/redis"
-	"ai-orchestrator/internal/infra/transport/middleware"
-	"ai-orchestrator/internal/infra/transport/stream"
-	promptService "ai-orchestrator/internal/service/prompt"
-	"ai-orchestrator/internal/util"
+	"ai-orchestrator/internal/config/app"
+	promptService "ai-orchestrator/internal/domain/service/prompt"
+	"ai-orchestrator/internal/infra/broker"
+	promptHandler "ai-orchestrator/internal/transport/http/handler/prompt"
+	"ai-orchestrator/internal/transport/http/helper"
+	"ai-orchestrator/internal/transport/middleware"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
@@ -21,7 +20,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *api.Config, logger *slog.Logger) (*http.Server, io.Closer) {
+func SetupHttpServer(cfg *app.APIConfig, logger *slog.Logger) (*http.Server, io.Closer) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -33,15 +32,14 @@ func SetupHttpServer(cfg *api.Config, logger *slog.Logger) (*http.Server, io.Clo
 		os.Exit(1)
 	}
 
-	streamOptions := &redis.StreamConfig{
+	streamOptions := &config.Stream{
 		MaxBacklog:   1000,
 		UseDelApprox: true,
 		ReadCount:    1,
 		BlockTime:    5 * time.Second,
 	}
-	rds := redis.NewService(logger, redisClient, streamOptions)
-	tasksProducer := stream.NewProducer(logger, rds, cfg)
-	ps := promptService.NewProducer(logger, tasksProducer, cfg)
+	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
+	ps := promptService.NewService(logger, producer)
 	ph := promptHandler.NewHandler(logger, ps)
 
 	r := registerRoutes(ph)
@@ -68,7 +66,7 @@ func registerRoutes(handler *promptHandler.Handler) *mux.Router {
 }
 
 func healthCheck(rw http.ResponseWriter, _ *http.Request) {
-	util.WriteJSONResponse(rw, http.StatusOK, nil)
+	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
 func GracefulShutdown(server *http.Server, logger *slog.Logger) {
