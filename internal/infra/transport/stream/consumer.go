@@ -1,14 +1,15 @@
-package prompt
+package stream
 
 import (
 	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/service/prompt"
 	"context"
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	"time"
 )
 
-type TaskConsumer interface {
+type BrokerConsumer interface {
 	CreateGroup(ctx context.Context, stream, group string) error
 	Consume(ctx context.Context, stream, consumer, group string) (string, string, string, error)
 	Ack(ctx context.Context, stream, group, messageId string) error
@@ -16,13 +17,13 @@ type TaskConsumer interface {
 
 type Consumer struct {
 	logger   common.Logger
-	tasks    TaskConsumer
+	tasks    BrokerConsumer
 	streamID string
 	WorkerID string
 	groupID  string
 }
 
-func NewConsumer(logger common.Logger, tasks TaskConsumer, redisStreamID, group, worker string) *Consumer {
+func NewConsumer(logger common.Logger, tasks BrokerConsumer, redisStreamID, group, worker string) *Consumer {
 	if worker == "" {
 		worker = "worker-" + uuid.New().String()
 	}
@@ -82,7 +83,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			workerCtx := opentracing.ContextWithSpan(ctx, span)
 
 			// Process the message before acknowledging it.
-			err = c.processMessage(workerCtx, messageID, entity)
+			err = prompt.SendPromptUseCase(workerCtx, messageID, entity)
 			span.Finish()
 			if err == nil {
 				ackCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -94,13 +95,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				}
 				continue
 			}
-			//c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
+			c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
 		}
 	}
-}
-
-func (c *Consumer) processMessage(ctx context.Context, messageID, entity string) error {
-	// TODO: replace this placeholder with actual business logic for processing the message entity.
-	c.logger.Info("Processing message", "message_id", messageID, "entity", entity)
-	return nil
 }

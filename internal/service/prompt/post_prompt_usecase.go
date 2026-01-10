@@ -9,26 +9,24 @@ import (
 )
 
 type TaskProducer interface {
-	CreateGroup(ctx context.Context, stream, group string) error
-	Publish(ctx context.Context, stream string, data any) error
+	Publish(ctx context.Context, data any) error
 }
 
 type Producer struct {
-	logger   common.Logger
-	tasks    TaskProducer
-	ttl      time.Duration
-	streamID string
+	logger common.Logger
+	tasks  TaskProducer
+	ttl    time.Duration
 }
 
 func NewProducer(l common.Logger, s TaskProducer, cfg *api.Config) *Producer {
-	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL(), streamID: cfg.RedisStreamID}
+	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL()}
 }
 
 func (s *Producer) PostPrompt(ctx context.Context, prompt domain.Prompt) error {
 	// TODO: Save to repository
 
 	// TODO: publish
-	err := s.tasks.Publish(ctx, s.streamID, prompt)
+	err := s.tasks.Publish(ctx, prompt)
 	if err != nil {
 		return err
 	}

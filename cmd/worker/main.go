@@ -14,6 +14,12 @@ func main() {
 	}
 	logger := cfg.ConfigureLogger(slog.LevelDebug)
 
-	workers := server.SetupWorkers(cfg, logger)
+	workers, closer := server.SetupWorkers(cfg, logger)
+	defer func() {
+		err := closer.Close()
+		if err != nil {
+			logger.Error("Failed to close tracer.", "error", err)
+		}
+	}()
 	server.StartWorkers(logger, workers)
 }

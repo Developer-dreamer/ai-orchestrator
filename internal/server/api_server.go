@@ -6,11 +6,13 @@ import (
 	promptHandler "ai-orchestrator/internal/handler/prompt"
 	"ai-orchestrator/internal/infra/redis"
 	"ai-orchestrator/internal/infra/transport/middleware"
+	"ai-orchestrator/internal/infra/transport/stream"
 	promptService "ai-orchestrator/internal/service/prompt"
 	"ai-orchestrator/internal/util"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,19 +21,13 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
+func SetupHttpServer(cfg *api.Config, logger *slog.Logger) (*http.Server, io.Closer) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	_, err = config.InitTracer(cfg.AppID, cfg.JaegerUri)
-	//defer func() {
-	//	err := closer.Close()
-	//	if err != nil {
-	//		logger.Error("Failed to close tracer.", "error", err)
-	//	}
-	//}()
+	closer, err := config.InitTracer(cfg.AppID, cfg.JaegerUri)
 	if err != nil {
 		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
@@ -44,7 +40,8 @@ func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
 		BlockTime:    5 * time.Second,
 	}
 	rds := redis.NewService(logger, redisClient, streamOptions)
-	ps := promptService.NewProducer(logger, rds, cfg)
+	tasksProducer := stream.NewProducer(logger, rds, cfg)
+	ps := promptService.NewProducer(logger, tasksProducer, cfg)
 	ph := promptHandler.NewHandler(logger, ps)
 
 	r := registerRoutes(ph)
@@ -56,7 +53,7 @@ func SetupHttpServer(cfg *api.Config, logger *slog.Logger) *http.Server {
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-	}
+	}, closer
 }
 
 func registerRoutes(handler *promptHandler.Handler) *mux.Router {

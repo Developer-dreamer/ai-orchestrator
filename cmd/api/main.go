@@ -14,6 +14,12 @@ func main() {
 	}
 	logger := cfg.ConfigureLogger(slog.LevelDebug)
 
-	srvr := server.SetupHttpServer(cfg, logger)
+	srvr, closer := server.SetupHttpServer(cfg, logger)
+	defer func() {
+		err := closer.Close()
+		if err != nil {
+			logger.Error("Failed to close tracer.", "error", err)
+		}
+	}()
 	server.GracefulShutdown(srvr, logger)
 }
