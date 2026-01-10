@@ -2,27 +2,24 @@ package prompt
 
 import (
 	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/config/api"
-	"ai-orchestrator/internal/domain"
+	"ai-orchestrator/internal/domain/model"
 	"context"
-	"time"
 )
 
 type TaskProducer interface {
 	Publish(ctx context.Context, data any) error
 }
 
-type Producer struct {
+type Service struct {
 	logger common.Logger
 	tasks  TaskProducer
-	ttl    time.Duration
 }
 
-func NewProducer(l common.Logger, s TaskProducer, cfg *api.Config) *Producer {
-	return &Producer{logger: l, tasks: s, ttl: cfg.GetCacheTTL()}
+func NewService(l common.Logger, s TaskProducer) *Service {
+	return &Service{logger: l, tasks: s}
 }
 
-func (s *Producer) PostPrompt(ctx context.Context, prompt domain.Prompt) error {
+func (s *Service) PostPrompt(ctx context.Context, prompt model.Prompt) error {
 	// TODO: Save to repository
 
 	// TODO: publish

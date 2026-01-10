@@ -1,7 +1,7 @@
 package prompt
 
 import (
-	"ai-orchestrator/internal/domain"
+	"ai-orchestrator/internal/domain/model"
 	"github.com/google/uuid"
 )
 
@@ -10,8 +10,8 @@ type CreateRequest struct {
 	Prompt string    `json:"prompt"`
 }
 
-func (r *CreateRequest) ToDomain() domain.Prompt {
-	return domain.Prompt{
+func (r *CreateRequest) ToDomain() model.Prompt {
+	return model.Prompt{
 		ID:     uuid.New(),
 		UserID: r.UserID,
 		Text:   r.Prompt,
@@ -24,7 +24,7 @@ type ResultResponse struct {
 	Message  string    `json:"message"`
 }
 
-func FromDomain(domain domain.Prompt, message string) ResultResponse {
+func FromDomain(domain model.Prompt, message string) ResultResponse {
 	return ResultResponse{
 		PromptID: domain.ID,
 		UserID:   domain.UserID,

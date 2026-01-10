@@ -1,16 +1,18 @@
-package util
+package helper
 
 import (
-	"ai-orchestrator/internal/custom_error"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 )
 
+var ErrInvalidPayload = errors.New("invalid payload")
+
 func FromJSON(r io.Reader, entity any) error {
 	err := json.NewDecoder(r).Decode(entity)
 	if err != nil {
-		return custom_error.NewErrInvalidPayload(err.Error())
+		return errors.Join(ErrInvalidPayload, err)
 	}
 	return nil
 }
