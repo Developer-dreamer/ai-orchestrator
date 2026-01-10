@@ -2,10 +2,10 @@ package stream
 
 import (
 	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/infra/jaeger"
 	"ai-orchestrator/internal/service/prompt"
 	"context"
 	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
 	"time"
 )
 
@@ -68,25 +68,11 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 			c.logger.Info("Received message from stream", "trace_id", traceId, "message_id", messageID)
 
-			tracer := opentracing.GlobalTracer()
-			spanContext, _ := tracer.Extract(
-				opentracing.TextMap,
-				opentracing.TextMapCarrier{"uber-trace-id": traceId},
-			)
-
-			span := tracer.StartSpan(
-				"worker_process_task",
-				opentracing.FollowsFrom(spanContext),
-			)
-
-			// 3. Create the Trace-Aware Context
-			workerCtx := opentracing.ContextWithSpan(ctx, span)
-
-			// Process the message before acknowledging it.
-			err = prompt.SendPromptUseCase(workerCtx, messageID, entity)
+			span, traceContext := jaeger.InitContext(ctx, traceId, "worker_process_task")
+			err = prompt.SendPromptUseCase(traceContext, messageID, entity)
 			span.Finish()
 			if err == nil {
-				ackCtx, cancel := context.WithTimeout(workerCtx, 2*time.Second)
+				ackCtx, cancel := context.WithTimeout(traceContext, 2*time.Second)
 				ackErr := c.tasks.Ack(ackCtx, c.streamID, c.groupID, messageID)
 				cancel()
 

@@ -3,9 +3,9 @@ package prompt
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/domain"
+	"ai-orchestrator/internal/infra/jaeger"
 	"ai-orchestrator/internal/util"
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"net/http"
 )
 
@@ -28,20 +28,8 @@ func NewHandler(l common.Logger, s Service) *Handler {
 func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 	h.logger.Info("Incoming request:", "path", "promptHandler.PostPrompt")
 
-	tracer := opentracing.GlobalTracer()
-
-	spanContext, _ := tracer.Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header),
-	)
-
-	span := tracer.StartSpan(
-		"post_prompt",
-		opentracing.ChildOf(spanContext),
-	)
+	span, ctx := jaeger.InitContextFromHttp(r, "post_prompt")
 	defer span.Finish()
-
-	ctxWithTrace := opentracing.ContextWithSpan(r.Context(), span)
 
 	userPrompt := &CreateRequest{}
 	err := util.FromJSON(r.Body, userPrompt)
@@ -52,7 +40,7 @@ func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	domainPrompt := userPrompt.ToDomain()
-	err = h.service.PostPrompt(ctxWithTrace, domainPrompt)
+	err = h.service.PostPrompt(ctx, domainPrompt)
 	if err != nil {
 		h.logger.Warn("failed to post prompt", "error", err, "domainPrompt", domainPrompt)
 		util.WriteJSONError(rw, http.StatusInternalServerError, "failed to post prompt", err)
