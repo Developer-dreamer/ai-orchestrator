@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/opentracing/opentracing-go"
 	"github.com/redis/go-redis/v9"
 	"strings"
 	"time"
@@ -48,12 +49,26 @@ func (s *Service) Publish(ctx context.Context, stream string, data any) error {
 		return ErrInvalidPublishEntity
 	}
 
+	carrier := make(map[string]string)
+	span := opentracing.SpanFromContext(ctx)
+	if span != nil {
+		err := opentracing.GlobalTracer().Inject(
+			span.Context(),
+			opentracing.TextMap,
+			opentracing.TextMapCarrier(carrier),
+		)
+		if err != nil {
+			s.logger.Warn("failed to inject tracing context", "error", err)
+		}
+	}
+
 	_, err = s.client.XAdd(ctx, &redis.XAddArgs{
 		MaxLen: s.config.MaxBacklog,
 		Approx: s.config.UseDelApprox,
 		Stream: stream,
 		Values: map[string]interface{}{
-			"data": dataStr,
+			"data":     dataStr,
+			"trace_id": carrier["uber-trace-id"],
 		},
 	}).Result()
 
@@ -66,8 +81,8 @@ func (s *Service) Publish(ctx context.Context, stream string, data any) error {
 	return nil
 }
 
-// Consume Consumes a message from the specified stream. Returns MessageID, Data, Error
-func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (string, string, error) {
+// Consume Consumes a message from the specified stream. Returns TraceID, MessageID, Data, Error
+func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (string, string, string, error) {
 
 	const undeliveredMessages = ">" // Redis specific alias: starts from the unconsumed message
 
@@ -81,18 +96,18 @@ func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (
 
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", "", nil
+			return "", "", "", nil
 		}
 		if errors.Is(err, context.Canceled) {
-			return "", "", nil
+			return "", "", "", nil
 		}
 
 		s.logger.Error("Failed to consume message.", "error", err, "stream", stream, "group", group, "consumer", consumer)
-		return "", "", errors.Join(ErrReadFromGroup, err)
+		return "", "", "", errors.Join(ErrReadFromGroup, err)
 	}
 
 	if len(res) == 0 || len(res[0].Messages) == 0 {
-		return "", "", nil
+		return "", "", "", nil
 	}
 
 	message := res[0].Messages[0]
@@ -100,11 +115,13 @@ func (s *Service) Consume(ctx context.Context, stream, consumer, group string) (
 	val, ok := message.Values["data"].(string)
 	if !ok {
 		s.logger.Error("Payload is not a string", "stream", stream, "group", group, "consumer", consumer)
-		return "", "", ErrParsingMessage
+		return "", "", "", ErrParsingMessage
 	}
 
+	traceID, _ := message.Values["trace_id"].(string)
+
 	s.logger.Debug("Received message", "stream", stream, "group", group, "consumer", consumer, "data", val)
-	return message.ID, val, nil
+	return traceID, message.ID, val, nil
 }
 
 // Ack Acknowledges a processed message by ID

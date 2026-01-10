@@ -1,4 +1,4 @@
-package config
+package worker
 
 import (
 	"fmt"
@@ -6,13 +6,12 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"time"
 )
 
 type Config struct {
-	AppPort         string `env:"PORT,required"`
+	AppID           string `env:"APP_ID,required"`
 	RedisUri        string `env:"REDIS_URI,required"`
-	CacheTTLMinutes string `env:"CACHE_TTL_MINUTES" envDefault:"5"`
+	JaegerUri       string `env:"JAEGER_URI,required"`
 	RedisStreamID   string `env:"REDIS_STREAM_ID" envDefault:"tasks"`
 	NumberOfWorkers string `env:"NUMBER_OF_WORKERS" envDefault:"1"`
 }
@@ -22,10 +21,6 @@ func LoadConfig() (*Config, error) {
 	err := env.Load(cfg, nil)
 	if err != nil {
 		return nil, err
-	}
-	minutes, err := strconv.Atoi(cfg.CacheTTLMinutes)
-	if err != nil || minutes <= 0 {
-		return nil, fmt.Errorf("invalid value for cache_ttl_minutes (must be positive integer): %s", cfg.CacheTTLMinutes)
 	}
 	workers, err := strconv.Atoi(cfg.NumberOfWorkers)
 	if err != nil || workers < 1 {
@@ -39,12 +34,6 @@ func (cfg *Config) ConfigureLogger(level slog.Level) *slog.Logger {
 		Level: level,
 	})
 	return slog.New(handler)
-}
-
-func (cfg *Config) GetCacheTTL() time.Duration {
-	// Error is deliberately ignored. All checks pass at the level of loading
-	minutes, _ := strconv.Atoi(cfg.CacheTTLMinutes)
-	return time.Duration(minutes) * time.Minute
 }
 
 func (cfg *Config) GetNumberOfWorkers() int {
