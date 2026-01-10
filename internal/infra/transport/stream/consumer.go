@@ -86,7 +86,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			err = prompt.SendPromptUseCase(workerCtx, messageID, entity)
 			span.Finish()
 			if err == nil {
-				ackCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				ackCtx, cancel := context.WithTimeout(workerCtx, 2*time.Second)
 				ackErr := c.tasks.Ack(ackCtx, c.streamID, c.groupID, messageID)
 				cancel()
 
