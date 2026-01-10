@@ -54,7 +54,8 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 	err := c.createGroup(ctx, c.streamID, c.groupID)
 	if err != nil {
-		return nil // TODO refactor
+		c.logger.Error("Failed to create group", "id", c.WorkerID, "err", err)
+		return err
 	}
 
 	for {
