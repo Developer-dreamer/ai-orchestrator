@@ -160,8 +160,9 @@ func (c *Consumer) consume(ctx context.Context, stream, consumer, group string) 
 
 	val, ok := message.Values["data"].(string)
 	if !ok {
+		parseErr := errors.New("payload is not a string")
 		c.logger.Error("Payload is not a string", "stream", stream, "group", group, "consumer", consumer)
-		return "", "", "", err
+		return "", "", "", parseErr
 	}
 
 	traceID, _ := message.Values["trace_id"].(string)
