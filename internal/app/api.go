@@ -5,6 +5,7 @@ import (
 	"ai-orchestrator/internal/config/app"
 	promptService "ai-orchestrator/internal/domain/service/prompt"
 	"ai-orchestrator/internal/infra/broker"
+	"ai-orchestrator/internal/infra/persistence/repository/prompt"
 	promptHandler "ai-orchestrator/internal/transport/http/handler/prompt"
 	"ai-orchestrator/internal/transport/http/helper"
 	"ai-orchestrator/internal/transport/middleware"
@@ -31,6 +32,15 @@ func SetupHttpServer(cfg *app.APIConfig, logger *slog.Logger) (*http.Server, io.
 		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
+	postgresClient, err := config.ConnectToPostgres(cfg.PostgresUri)
+	if err != nil {
+		logger.Error("Failed to initiate postgres. Server shutdown.", "error", err)
+		os.Exit(1)
+	}
+	if err = config.RunMigrations(postgresClient, cfg.MigrationsDir); err != nil {
+		logger.Error("error while running migrations", "error", err)
+		os.Exit(1)
+	}
 
 	streamOptions := &config.Stream{
 		MaxBacklog:   1000,
@@ -39,7 +49,8 @@ func SetupHttpServer(cfg *app.APIConfig, logger *slog.Logger) (*http.Server, io.
 		BlockTime:    5 * time.Second,
 	}
 	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
-	ps := promptService.NewService(logger, producer)
+	pr := prompt.NewRepository(logger, postgresClient)
+	ps := promptService.NewService(logger, producer, pr)
 	ph := promptHandler.NewHandler(logger, ps)
 
 	r := registerRoutes(ph)
