@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"errors"
-	_ "time"
 
 	"go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
