@@ -22,7 +22,7 @@ func NewRepository(logger common.Logger, db *sqlx.DB) *Repository {
 
 func (r *Repository) InsertPrompt(ctx context.Context, prompt model.Prompt) error {
 	dbPrompt := FromDomain(prompt)
-	dbPrompt.CreatedAt = time.Now()
+	dbPrompt.CreatedAt = time.Now().UTC()
 	dbPrompt.UpdatedAt = dbPrompt.CreatedAt
 
 	query := `
