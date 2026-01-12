@@ -1,14 +1,17 @@
 package app
 
 import (
+	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
 	"ai-orchestrator/internal/config/env"
-	promptService "ai-orchestrator/internal/domain/service/prompt"
 	"ai-orchestrator/internal/infra/broker"
-	"ai-orchestrator/internal/infra/persistence/repository/prompt"
+	"ai-orchestrator/internal/infra/persistence"
+	outbox2 "ai-orchestrator/internal/infra/persistence/repository/outbox"
+	promptRepo "ai-orchestrator/internal/infra/persistence/repository/prompt"
 	promptHandler "ai-orchestrator/internal/transport/http/handler/prompt"
 	"ai-orchestrator/internal/transport/http/helper"
 	"ai-orchestrator/internal/transport/middleware"
+	savePromptUsecase "ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
@@ -48,11 +51,13 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, fun
 		BlockTime:    5 * time.Second,
 	}
 	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
-	pr := prompt.NewRepository(logger, postgresClient)
-	ps := promptService.NewService(logger, producer, pr)
-	ph := promptHandler.NewHandler(logger, ps)
+	pr := promptRepo.NewRepository(logger, postgresClient)
+	outbox := outbox2.NewRepository(logger, postgresClient)
+	transactor := persistence.NewTransactor(logger, postgresClient)
+	savePromptUsecase := savePromptUsecase.NewSavePromptUsecase(logger, producer, pr, transactor, outbox)
+	ph := promptHandler.NewHandler(logger, savePromptUsecase)
 
-	r := registerRoutes(ph)
+	r := registerRoutes(ph, logger)
 	logger.Info("Starting server")
 
 	return &http.Server{
@@ -64,9 +69,11 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, fun
 	}, closer
 }
 
-func registerRoutes(handler *promptHandler.Handler) *mux.Router {
+func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.Router {
 	r := mux.NewRouter()
 
+	recoveryManager := middleware.NewRecoveryManager(logger)
+	r.Use(recoveryManager.Recovery)
 	r.Use(middleware.TracingMiddleware)
 
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
@@ -103,4 +110,8 @@ func GracefulShutdown(server *http.Server, logger *slog.Logger, tracerShutdown f
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("error during server shutdown", "error", err, "addr", server.Addr)
 	}
+}
+
+func startRelay() {
+
 }

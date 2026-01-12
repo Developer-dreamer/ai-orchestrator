@@ -8,6 +8,7 @@ CREATE TABLE outbox
     event_type     VARCHAR(255) NOT NULL,         -- Event Type (eg. "PromptCreated")
     payload        JSONB        NOT NULL,         -- Prompt struct JSON
     status         VARCHAR(50) DEFAULT 'pending', -- PENDING, PROCESSING, COMPLETED, FAILED
+    trace_id       CHAR(32)     NOT NULL,
     retry_count    INT         DEFAULT 0,         -- Hw much tries for resending
     error_message  TEXT,                          -- Failed sending error log
     created_at     TIMESTAMPTZ DEFAULT NOW(),

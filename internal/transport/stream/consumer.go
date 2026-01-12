@@ -16,7 +16,7 @@ import (
 
 const (
 	minBackoff    = 1 * time.Second
-	maxBackoff    = 60 * time.Second // Не чекати більше хвилини
+	maxBackoff    = 60 * time.Second
 	backoffFactor = 2
 )
 
