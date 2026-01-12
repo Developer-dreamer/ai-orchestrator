@@ -88,17 +88,16 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				continue
 			}
 
-			// Reset backoff after successful consume to restore optimal throughput.
 			currentBackoff = minBackoff
 			if entity == "" {
 				continue
 			}
 
-			c.logger.Info("Received message from stream", "trace_id", traceId, "message_id", messageID)
-
 			span, traceContext := tracing.InitContext(ctx, traceId, "worker_process_task")
+			c.logger.InfoContext(traceContext, "Received message from stream", "message_id", messageID)
+
 			err = prompt.SendPromptUseCase(traceContext, messageID, entity)
-			span.Finish()
+			span.End()
 			if err == nil {
 				ackCtx, cancel := context.WithTimeout(traceContext, 2*time.Second)
 				ackErr := c.ack(ackCtx, c.streamID, c.groupID, messageID)
@@ -109,7 +108,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				}
 				continue
 			}
-			c.logger.Error("Failed to process message", "message_id", messageID, "error", err)
+			c.logger.ErrorContext(traceContext, "Failed to process message", "message_id", messageID, "error", err)
 		}
 	}
 }

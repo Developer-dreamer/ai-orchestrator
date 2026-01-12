@@ -15,12 +15,7 @@ func main() {
 	}
 	logger := config.NewLogger(slog.LevelDebug)
 
-	workers, closer := app.SetupWorkers(cfg, logger)
-	defer func() {
-		err := closer.Close()
-		if err != nil {
-			logger.Error("Failed to close tracer.", "error", err)
-		}
-	}()
+	workers, tracerShutdown := app.SetupWorkers(cfg, logger)
 	app.StartWorkers(logger, workers)
+	app.Shutdown(logger, tracerShutdown)
 }

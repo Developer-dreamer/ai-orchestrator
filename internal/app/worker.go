@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -16,7 +15,7 @@ import (
 	"time"
 )
 
-func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, io.Closer) {
+func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -81,4 +80,19 @@ func StartWorkers(logger *slog.Logger, workers []*stream.Consumer) {
 	logger.Info("All workers are running. Waiting for tasks...")
 	wg.Wait()
 	logger.Info("System shutdown complete.")
+}
+
+func Shutdown(logger *slog.Logger, tracerShutdown func(context.Context) error) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	sig := <-sigChan
+	logger.Info("received terminate, graceful shutdown", "sig", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := tracerShutdown(ctx); err != nil {
+		logger.Error("error occurred when shutting down tracer", "error", err)
+	}
 }

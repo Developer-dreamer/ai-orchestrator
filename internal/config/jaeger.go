@@ -1,32 +1,49 @@
 package config
 
 import (
+	"context"
 	"errors"
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/config"
-	"io"
+	_ "time"
+
+	"go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
-var ErrInitTracer = errors.New("could not initialize jaeger tracer")
+var ErrInitTracer = errors.New("could not initialize opentelemetry tracer")
 
-func InitTracer(appID, jaegerUri string) (io.Closer, error) {
-	jaegerCfg := &config.Configuration{
-		ServiceName: appID,
-		Sampler: &config.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &config.ReporterConfig{
-			LogSpans:           true,
-			LocalAgentHostPort: jaegerUri,
-		},
-	}
+func InitTracer(appID, jaegerUri string) (func(context.Context) error, error) {
+	ctx := context.Background()
 
-	tracer, closer, err := jaegerCfg.NewTracer()
+	exporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpoint(jaegerUri),
+		otlptracehttp.WithInsecure(),
+	)
 	if err != nil {
 		return nil, errors.Join(ErrInitTracer, err)
 	}
-	opentracing.SetGlobalTracer(tracer)
-	return closer, nil
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceName(appID),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+
+	otel.SetTracerProvider(tp)
+
+	otel.SetTextMapPropagator(jaeger.Jaeger{})
+
+	return tp.Shutdown, nil
 }

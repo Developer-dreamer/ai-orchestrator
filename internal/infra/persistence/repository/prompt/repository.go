@@ -30,11 +30,11 @@ func (r *Repository) InsertPrompt(ctx context.Context, prompt model.Prompt) erro
 		VALUES (:id, :user_id, :text, :status, :created_at, :updated_at)
 	`
 
-	r.logger.Info("executing query to insert new prompt", "query", query, "repository", "promptRepository")
+	r.logger.InfoContext(ctx, "executing query to insert new prompt", "query", query, "repository", "promptRepository")
 
 	_, err := r.db.NamedExecContext(ctx, query, dbPrompt)
 	if err != nil {
-		r.logger.Error("failed to insert new prompt", "error", err)
+		r.logger.ErrorContext(ctx, "failed to insert new prompt", "error", err)
 		return err
 	}
 

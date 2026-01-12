@@ -2,39 +2,32 @@ package tracing
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func InitContextFromHttp(r *http.Request, operationName string) (opentracing.Span, context.Context) {
-	tracer := opentracing.GlobalTracer()
-
-	spanContext, _ := tracer.Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header),
-	)
-
-	span := tracer.StartSpan(
-		operationName,
-		opentracing.ChildOf(spanContext),
-	)
-
-	return span, opentracing.ContextWithSpan(r.Context(), span)
+func getTracer() trace.Tracer {
+	return otel.Tracer("default-tracer")
 }
 
-func InitContext(ctx context.Context, traceId, operationId string) (opentracing.Span, context.Context) {
-	tracer := opentracing.GlobalTracer()
-	spanContext, _ := tracer.Extract(
-		opentracing.TextMap,
-		opentracing.TextMapCarrier{"uber-trace-id": traceId},
-	)
+func InitContextFromHttp(r *http.Request, operationName string) (trace.Span, context.Context) {
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 
-	span := tracer.StartSpan(
-		operationId,
-		opentracing.FollowsFrom(spanContext),
-	)
+	ctx, span := getTracer().Start(ctx, operationName)
 
-	workerCtx := opentracing.ContextWithSpan(ctx, span)
+	return span, ctx
+}
 
-	return span, workerCtx
+func InitContext(ctx context.Context, traceId, operationId string) (trace.Span, context.Context) {
+	carrier := propagation.MapCarrier{
+		"uber-trace-id": traceId,
+	}
+
+	extractedCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
+	newCtx, span := getTracer().Start(extractedCtx, operationId)
+
+	return span, newCtx
 }

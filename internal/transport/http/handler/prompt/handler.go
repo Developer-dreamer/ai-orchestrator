@@ -26,15 +26,14 @@ func NewHandler(l common.Logger, s Service) *Handler {
 }
 
 func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
-	h.logger.Info("Incoming request:", "path", "promptHandler.PostPrompt")
-
 	span, ctx := tracing.InitContextFromHttp(r, "post_prompt")
-	defer span.Finish()
+	defer span.End()
+	h.logger.InfoContext(ctx, "Incoming request:", "path", "promptHandler.PostPrompt")
 
 	userPrompt := &CreateRequest{}
 	err := helper.FromJSON(r.Body, userPrompt)
 	if err != nil {
-		h.logger.Warn("failed to decode request body", "error", err, "request_body", r.Body, "handler", "promptHandler.PostPrompt")
+		h.logger.WarnContext(ctx, "failed to decode request body", "error", err, "request_body", r.Body, "handler", "promptHandler.PostPrompt")
 		helper.WriteJSONError(rw, http.StatusBadRequest, "invalid request body", nil)
 		return
 	}
@@ -42,7 +41,7 @@ func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 	domainPrompt := userPrompt.ToDomain()
 	err = h.service.PostPrompt(ctx, domainPrompt)
 	if err != nil {
-		h.logger.Warn("failed to post prompt", "error", err, "domainPrompt", domainPrompt)
+		h.logger.WarnContext(ctx, "failed to post prompt", "error", err, "domainPrompt", domainPrompt)
 		helper.WriteJSONError(rw, http.StatusInternalServerError, "failed to post prompt", err)
 		return
 	}

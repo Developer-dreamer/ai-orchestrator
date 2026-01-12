@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,7 +20,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, io.Closer) {
+func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -80,7 +79,7 @@ func healthCheck(rw http.ResponseWriter, _ *http.Request) {
 	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
-func GracefulShutdown(server *http.Server, logger *slog.Logger) {
+func GracefulShutdown(server *http.Server, logger *slog.Logger, tracerShutdown func(context.Context) error) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -96,6 +95,10 @@ func GracefulShutdown(server *http.Server, logger *slog.Logger) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if err := tracerShutdown(ctx); err != nil {
+		logger.Error("error occurred when shutting down tracer", "error", err)
+	}
 
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("error during server shutdown", "error", err, "addr", server.Addr)
