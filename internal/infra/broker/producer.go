@@ -6,6 +6,7 @@ import (
 	"ai-orchestrator/internal/config/env"
 	"ai-orchestrator/internal/infra/persistence/repository/outbox"
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -163,13 +164,13 @@ func (p *Producer) backOff(ctx context.Context, currentBackoff time.Duration) (t
 	return currentBackoff, nil
 }
 
-func (p *Producer) publish(ctx context.Context, data []byte) error {
+func (p *Producer) publish(ctx context.Context, data json.RawMessage) error {
 	headers := make(map[string]string)
 
 	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
 
 	values := map[string]interface{}{
-		"data": data,
+		"data": string(data),
 	}
 
 	for k, v := range headers {

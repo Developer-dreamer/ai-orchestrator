@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/domain/model"
 	"context"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -83,9 +82,9 @@ func (r *Repository) CreateEvent(ctx context.Context, event Event) error {
 func (r *Repository) ChangeEventStatus(ctx context.Context, eventID uuid.UUID, eventStatus Status) error {
 	query := `
         UPDATE outbox 
-        SET status = $1, 
+        SET status = $2, 
             processed_at = NOW() 
-        WHERE id = $2
+        WHERE id = $1
     `
 
 	r.logger.InfoContext(ctx, "marking event as processed", "event_id", eventID)

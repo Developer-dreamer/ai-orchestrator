@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, func(context.Context) error) {
+func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *broker.Producer, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -50,12 +50,15 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, fun
 		ReadCount:    1,
 		BlockTime:    5 * time.Second,
 	}
-	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
-	pr := promptRepo.NewRepository(logger, postgresClient)
-	outbox := outbox2.NewRepository(logger, postgresClient)
 	transactor := persistence.NewTransactor(logger, postgresClient)
-	savePromptUsecase := savePromptUsecase.NewSavePromptUsecase(logger, producer, pr, transactor, outbox)
-	ph := promptHandler.NewHandler(logger, savePromptUsecase)
+	outbox := outbox2.NewRepository(logger, postgresClient)
+
+	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg, outbox, transactor)
+
+	pr := promptRepo.NewRepository(logger, postgresClient)
+
+	savePrompt := savePromptUsecase.NewSavePromptUsecase(logger, pr, transactor, outbox)
+	ph := promptHandler.NewHandler(logger, savePrompt)
 
 	r := registerRoutes(ph, logger)
 	logger.Info("Starting server")
@@ -66,7 +69,7 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, fun
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-	}, closer
+	}, producer, closer
 }
 
 func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.Router {
@@ -86,7 +89,10 @@ func healthCheck(rw http.ResponseWriter, _ *http.Request) {
 	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
-func GracefulShutdown(server *http.Server, logger *slog.Logger, tracerShutdown func(context.Context) error) {
+func GracefulShutdown(server *http.Server, producer *broker.Producer, logger *slog.Logger, tracerShutdown func(context.Context) error) {
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -94,24 +100,38 @@ func GracefulShutdown(server *http.Server, logger *slog.Logger, tracerShutdown f
 		logger.Info("starting HTTP server", "addr", server.Addr, "idle_timeout", server.IdleTimeout, "read_timeout", server.ReadTimeout, "write_timeout", server.WriteTimeout)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("error occurred when starting server", "error", err)
+			appCancel()
 		}
 	}()
 
-	sig := <-sigChan
-	logger.Info("received terminate, graceful shutdown", "sig", sig)
+	go func() {
+		logger.Info("Starting producer")
+		if err := producer.Start(appCtx); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				logger.Error("error occurred in producer", "error", err)
+			}
+		}
+	}()
+
+	select {
+	case sig := <-sigChan:
+		logger.Info("received terminate signal", "sig", sig)
+	case <-appCtx.Done():
+		logger.Info("application context canceled (internal error)")
+	}
+
+	appCancel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("error during server shutdown", "error", err, "addr", server.Addr)
+	}
 
 	if err := tracerShutdown(ctx); err != nil {
 		logger.Error("error occurred when shutting down tracer", "error", err)
 	}
 
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("error during server shutdown", "error", err, "addr", server.Addr)
-	}
-}
-
-func startRelay() {
-
+	logger.Info("Graceful shutdown completed")
 }

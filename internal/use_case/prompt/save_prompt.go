@@ -7,10 +7,6 @@ import (
 	"context"
 )
 
-type TaskProducer interface {
-	Publish(ctx context.Context, data any) error
-}
-
 type Transactor interface {
 	WithinTransaction(ctx context.Context, tFunc func(ctx context.Context) error) error
 }
@@ -25,16 +21,14 @@ type OutboxRepository interface {
 
 type SavePromptUsecase struct {
 	logger common.Logger
-	tasks  TaskProducer
 	repo   Repository
 	tx     Transactor
 	outbox OutboxRepository
 }
 
-func NewSavePromptUsecase(l common.Logger, s TaskProducer, repository Repository, tx Transactor, or OutboxRepository) *SavePromptUsecase {
+func NewSavePromptUsecase(l common.Logger, repository Repository, tx Transactor, or OutboxRepository) *SavePromptUsecase {
 	return &SavePromptUsecase{
 		logger: l,
-		tasks:  s,
 		repo:   repository,
 		tx:     tx,
 		outbox: or}

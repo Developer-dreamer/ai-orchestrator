@@ -3,12 +3,15 @@ package stream
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/infra/telemetry/tracing"
 	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"math/rand"
 	"strings"
 	"time"
@@ -64,7 +67,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			c.logger.Info("Stopping consumer", "worker_id", c.WorkerID)
 			return ctx.Err()
 		default:
-			traceId, messageID, entity, err := c.consume(ctx, c.streamID, c.WorkerID, c.groupID)
+			headers, messageID, entity, err := c.consume(ctx, c.streamID, c.WorkerID, c.groupID)
 			if err != nil {
 				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id", c.groupID, "worker_id", c.WorkerID)
 
@@ -93,13 +96,19 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				continue
 			}
 
-			span, traceContext := tracing.InitContext(ctx, traceId, "worker_process_task")
-			c.logger.InfoContext(traceContext, "Received message from stream", "message_id", messageID)
+			parentCtx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.MapCarrier(headers))
 
-			err = prompt.SendPromptUseCase(traceContext, messageID, entity)
+			tracer := otel.Tracer("worker")
+			ctx, span := tracer.Start(parentCtx, "worker_process",
+				trace.WithSpanKind(trace.SpanKindConsumer),
+				trace.WithAttributes(attribute.String("redis.message_id", messageID)),
+			)
+			c.logger.InfoContext(ctx, "Received message from stream", "message_id", messageID)
+
+			err = prompt.SendPromptUseCase(ctx, messageID, entity)
 			span.End()
 			if err == nil {
-				ackCtx, cancel := context.WithTimeout(traceContext, 2*time.Second)
+				ackCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 				ackErr := c.ack(ackCtx, c.streamID, c.groupID, messageID)
 				cancel()
 
@@ -108,7 +117,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 				}
 				continue
 			}
-			c.logger.ErrorContext(traceContext, "Failed to process message", "message_id", messageID, "error", err)
+			c.logger.ErrorContext(ctx, "Failed to process message", "message_id", messageID, "error", err)
 		}
 	}
 }
@@ -127,8 +136,8 @@ func (c *Consumer) createGroup(ctx context.Context, stream, group string) error 
 	return nil
 }
 
-// Consume Consumes a message from the specified stream. Returns TraceID, MessageID, Data, Error
-func (c *Consumer) consume(ctx context.Context, stream, consumer, group string) (string, string, string, error) {
+// Consume Consumes a message from the specified stream. Returns Headers, MessageID, Data, Error
+func (c *Consumer) consume(ctx context.Context, stream, consumer, group string) (map[string]string, string, string, error) {
 
 	const undeliveredMessages = ">" // Redis specific alias: starts from the unconsumed message
 
@@ -142,33 +151,38 @@ func (c *Consumer) consume(ctx context.Context, stream, consumer, group string) 
 
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", "", "", nil
+			return nil, "", "", nil
 		}
 		if errors.Is(err, context.Canceled) {
-			return "", "", "", nil
+			return nil, "", "", nil
 		}
 
 		c.logger.Error("Failed to consume message.", "error", err, "stream", stream, "group", group, "consumer", consumer)
-		return "", "", "", err
+		return nil, "", "", err
 	}
 
 	if len(res) == 0 || len(res[0].Messages) == 0 {
-		return "", "", "", nil
+		return nil, "", "", nil
 	}
 
 	message := res[0].Messages[0]
 
-	val, ok := message.Values["data"].(string)
-	if !ok {
-		parseErr := errors.New("payload is not a string")
-		c.logger.Error("Payload is not a string", "stream", stream, "group", group, "consumer", consumer)
-		return "", "", "", parseErr
+	headers := make(map[string]string)
+
+	var data string
+	for k, v := range message.Values {
+		if strVal, ok := v.(string); ok {
+			if k == "data" {
+				data = strVal
+			} else {
+				// Все інше вважаємо заголовками трейсингу
+				headers[k] = strVal
+			}
+		}
 	}
 
-	traceID, _ := message.Values["trace_id"].(string)
-
-	c.logger.Debug("Received message", "stream", stream, "group", group, "consumer", consumer, "data", val)
-	return traceID, message.ID, val, nil
+	c.logger.Debug("Received message", "stream", stream, "group", group, "consumer", consumer, "data", data)
+	return headers, message.ID, data, nil
 }
 
 // Ack Acknowledges a processed message by ID
