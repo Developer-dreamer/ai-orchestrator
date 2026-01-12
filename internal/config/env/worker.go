@@ -1,10 +1,8 @@
-package app
+package env
 
 import (
 	"fmt"
 	"go-simpler.org/env"
-	"log/slog"
-	"os"
 	"strconv"
 )
 
@@ -27,13 +25,6 @@ func LoadWorkerConfig() (*WorkerConfig, error) {
 		return nil, fmt.Errorf("invalid value for number_of_workers: %s", cfg.NumberOfWorkers)
 	}
 	return cfg, nil
-}
-
-func (cfg *WorkerConfig) ConfigureLogger(level slog.Level) *slog.Logger {
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
-	})
-	return slog.New(handler)
 }
 
 func (cfg *WorkerConfig) GetNumberOfWorkers() int {

@@ -2,7 +2,7 @@ package app
 
 import (
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/app"
+	"ai-orchestrator/internal/config/env"
 	"ai-orchestrator/internal/transport/stream"
 	"context"
 	"errors"
@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func SetupWorkers(cfg *app.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, io.Closer) {
+func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, io.Closer) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)

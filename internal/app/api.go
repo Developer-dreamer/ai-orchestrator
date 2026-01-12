@@ -2,7 +2,7 @@ package app
 
 import (
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/app"
+	"ai-orchestrator/internal/config/env"
 	promptService "ai-orchestrator/internal/domain/service/prompt"
 	"ai-orchestrator/internal/infra/broker"
 	"ai-orchestrator/internal/infra/persistence/repository/prompt"
@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *app.APIConfig, logger *slog.Logger) (*http.Server, io.Closer) {
+func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, io.Closer) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)

@@ -2,17 +2,18 @@ package main
 
 import (
 	"ai-orchestrator/internal/app"
-	config "ai-orchestrator/internal/config/app"
+	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/config/env"
 	"log"
 	"log/slog"
 )
 
 func main() {
-	cfg, err := config.LoadWorkerConfig()
+	cfg, err := env.LoadWorkerConfig()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	logger := cfg.ConfigureLogger(slog.LevelDebug)
+	logger := config.NewLogger(slog.LevelDebug)
 
 	workers, closer := app.SetupWorkers(cfg, logger)
 	defer func() {

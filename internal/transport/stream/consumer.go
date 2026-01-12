@@ -3,7 +3,7 @@ package stream
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/infra/telemetry"
+	"ai-orchestrator/internal/infra/telemetry/tracing"
 	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
@@ -96,7 +96,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 			c.logger.Info("Received message from stream", "trace_id", traceId, "message_id", messageID)
 
-			span, traceContext := telemetry.InitContext(ctx, traceId, "worker_process_task")
+			span, traceContext := tracing.InitContext(ctx, traceId, "worker_process_task")
 			err = prompt.SendPromptUseCase(traceContext, messageID, entity)
 			span.Finish()
 			if err == nil {

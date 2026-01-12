@@ -3,7 +3,7 @@ package broker
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/app"
+	"ai-orchestrator/internal/config/env"
 	"context"
 	"encoding/json"
 	"github.com/opentracing/opentracing-go"
@@ -17,7 +17,7 @@ type Producer struct {
 	streamID string
 }
 
-func NewProducer(l common.Logger, client *redis.Client, streamCfg *config.Stream, cfg *app.APIConfig) *Producer {
+func NewProducer(l common.Logger, client *redis.Client, streamCfg *config.Stream, cfg *env.APIConfig) *Producer {
 	return &Producer{logger: l, client: client, config: streamCfg, streamID: cfg.RedisStreamID}
 }
 

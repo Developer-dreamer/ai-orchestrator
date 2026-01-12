@@ -3,7 +3,7 @@ package prompt
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/domain/model"
-	"ai-orchestrator/internal/infra/telemetry"
+	"ai-orchestrator/internal/infra/telemetry/tracing"
 	"ai-orchestrator/internal/transport/http/helper"
 	"context"
 	"net/http"
@@ -28,7 +28,7 @@ func NewHandler(l common.Logger, s Service) *Handler {
 func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {
 	h.logger.Info("Incoming request:", "path", "promptHandler.PostPrompt")
 
-	span, ctx := telemetry.InitContextFromHttp(r, "post_prompt")
+	span, ctx := tracing.InitContextFromHttp(r, "post_prompt")
 	defer span.Finish()
 
 	userPrompt := &CreateRequest{}

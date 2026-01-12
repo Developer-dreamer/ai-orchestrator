@@ -1,10 +1,8 @@
-package app
+package env
 
 import (
 	"fmt"
 	"go-simpler.org/env"
-	"log/slog"
-	"os"
 	"strconv"
 	"time"
 )
@@ -31,13 +29,6 @@ func LoadAPIConfig() (*APIConfig, error) {
 		return nil, fmt.Errorf("invalid value for cache_ttl_minutes (must be positive integer): %s", cfg.CacheTTLMinutes)
 	}
 	return cfg, nil
-}
-
-func (cfg *APIConfig) ConfigureLogger(level slog.Level) *slog.Logger {
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
-	})
-	return slog.New(handler)
 }
 
 func (cfg *APIConfig) GetCacheTTL() time.Duration {
