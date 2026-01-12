@@ -11,7 +11,7 @@ import (
 func main() {
 	cfg, err := env.LoadAPIConfig()
 	if err != nil {
-		log.Fatalf("failed to load appConfig: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 	logger := config.NewLogger(slog.LevelDebug)
 
