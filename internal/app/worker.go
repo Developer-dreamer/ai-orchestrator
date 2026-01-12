@@ -2,12 +2,11 @@ package app
 
 import (
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/app"
+	"ai-orchestrator/internal/config/env"
 	"ai-orchestrator/internal/transport/stream"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -16,7 +15,7 @@ import (
 	"time"
 )
 
-func SetupWorkers(cfg *app.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, io.Closer) {
+func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -47,7 +46,7 @@ func SetupWorkers(cfg *app.WorkerConfig, logger *slog.Logger) ([]*stream.Consume
 	return workers, closer
 }
 
-func StartWorkers(logger *slog.Logger, workers []*stream.Consumer) {
+func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdown func(context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -80,5 +79,9 @@ func StartWorkers(logger *slog.Logger, workers []*stream.Consumer) {
 
 	logger.Info("All workers are running. Waiting for tasks...")
 	wg.Wait()
+
+	if err := tracerShutdown(ctx); err != nil {
+		logger.Error("error occurred when shutting down tracer", "error", err)
+	}
 	logger.Info("System shutdown complete.")
 }
