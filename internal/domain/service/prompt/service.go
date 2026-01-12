@@ -11,6 +11,7 @@ type TaskProducer interface {
 }
 
 type Repository interface {
+	InsertPrompt(ctx context.Context, prompt model.Prompt) error
 }
 
 type Service struct {
@@ -24,13 +25,15 @@ func NewService(l common.Logger, s TaskProducer, repository Repository) *Service
 }
 
 func (s *Service) PostPrompt(ctx context.Context, prompt model.Prompt) error {
-	// TODO: Save to repository
+	prompt.Status = model.Accepted
 
-	// TODO: publish
-	err := s.tasks.Publish(ctx, prompt)
+	err := s.repo.InsertPrompt(ctx, prompt)
 	if err != nil {
 		return err
 	}
-	// Later there will be no return value, since error will be handled automatically via the Outbox pattern.
+	err = s.tasks.Publish(ctx, prompt)
+	if err != nil {
+		return err
+	}
 	return nil
 }
