@@ -46,7 +46,7 @@ func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consume
 	return workers, closer
 }
 
-func StartWorkers(logger *slog.Logger, workers []*stream.Consumer) {
+func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdown func(context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -79,20 +79,9 @@ func StartWorkers(logger *slog.Logger, workers []*stream.Consumer) {
 
 	logger.Info("All workers are running. Waiting for tasks...")
 	wg.Wait()
-	logger.Info("System shutdown complete.")
-}
-
-func Shutdown(logger *slog.Logger, tracerShutdown func(context.Context) error) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	sig := <-sigChan
-	logger.Info("received terminate, graceful shutdown", "sig", sig)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	if err := tracerShutdown(ctx); err != nil {
 		logger.Error("error occurred when shutting down tracer", "error", err)
 	}
+	logger.Info("System shutdown complete.")
 }

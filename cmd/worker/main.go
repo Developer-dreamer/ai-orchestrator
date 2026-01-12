@@ -16,6 +16,5 @@ func main() {
 	logger := config.NewLogger(slog.LevelDebug)
 
 	workers, tracerShutdown := app.SetupWorkers(cfg, logger)
-	app.StartWorkers(logger, workers)
-	app.Shutdown(logger, tracerShutdown)
+	app.StartWorkers(logger, workers, tracerShutdown)
 }
