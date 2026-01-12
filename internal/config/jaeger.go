@@ -31,7 +31,7 @@ func InitTracer(appID, jaegerUri string) (func(context.Context) error, error) {
 		),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrInitTracer, err)
 	}
 
 	tp := sdktrace.NewTracerProvider(
