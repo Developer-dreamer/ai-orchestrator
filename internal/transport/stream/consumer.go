@@ -3,7 +3,6 @@ package stream
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"github.com/google/uuid"
@@ -23,8 +22,12 @@ const (
 	backoffFactor = 2
 )
 
+type UseCase interface {
+	Use(ctx context.Context, messageID, entity string) error
+}
 type Consumer struct {
 	logger   common.Logger
+	usecase  UseCase
 	client   *redis.Client
 	config   *config.Stream
 	streamID string
@@ -32,7 +35,7 @@ type Consumer struct {
 	groupID  string
 }
 
-func NewConsumer(logger common.Logger, client *redis.Client, cfg *config.Stream, redisStreamID, group, worker string) *Consumer {
+func NewConsumer(logger common.Logger, usecase UseCase, client *redis.Client, cfg *config.Stream, redisStreamID, group, worker string) *Consumer {
 	if worker == "" {
 		worker = "worker-" + uuid.New().String()
 	}
@@ -42,6 +45,7 @@ func NewConsumer(logger common.Logger, client *redis.Client, cfg *config.Stream,
 
 	return &Consumer{
 		logger:   logger,
+		usecase:  usecase,
 		client:   client,
 		config:   cfg,
 		streamID: redisStreamID,
@@ -105,7 +109,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			)
 			c.logger.InfoContext(ctx, "Received message from stream", "message_id", messageID)
 
-			err = prompt.SendPromptUseCase(ctx, messageID, entity)
+			err = c.usecase.Use(ctx, messageID, entity)
 			span.End()
 			if err == nil {
 				ackCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -175,7 +179,6 @@ func (c *Consumer) consume(ctx context.Context, stream, consumer, group string) 
 			if k == "data" {
 				data = strVal
 			} else {
-				// Все інше вважаємо заголовками трейсингу
 				headers[k] = strVal
 			}
 		}

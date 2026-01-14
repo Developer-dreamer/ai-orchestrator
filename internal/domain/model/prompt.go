@@ -13,8 +13,9 @@ var (
 )
 
 type Prompt struct {
-	ID     uuid.UUID
-	UserID uuid.UUID
-	Text   string
-	Status Status
+	ID      uuid.UUID
+	UserID  uuid.UUID
+	ModelID string
+	Text    string
+	Status  Status
 }

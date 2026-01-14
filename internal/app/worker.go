@@ -3,10 +3,13 @@ package app
 import (
 	"ai-orchestrator/internal/config"
 	"ai-orchestrator/internal/config/env"
+	"ai-orchestrator/internal/infra/ai/gemini"
 	"ai-orchestrator/internal/transport/stream"
+	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/genai"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -26,6 +29,12 @@ func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consume
 		logger.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to initiate client.", "error", err)
+		os.Exit(1)
+	}
 
 	streamOptions := &config.Stream{
 		MaxBacklog:   1000,
@@ -34,12 +43,14 @@ func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consume
 		BlockTime:    5 * time.Second,
 	}
 
+	aiProvider := gemini.NewClient(logger, client)
+	sendPromptUsecase := prompt.NewSendPrompUsecase(logger, aiProvider)
 	var workers []*stream.Consumer
 
 	for i := 0; i < cfg.GetNumberOfWorkers(); i++ {
 		workerName := fmt.Sprintf("worker-%d", i)
 
-		w := stream.NewConsumer(logger, redisClient, streamOptions, cfg.RedisStreamID, "ai_tasks_group", workerName)
+		w := stream.NewConsumer(logger, sendPromptUsecase, redisClient, streamOptions, cfg.RedisStreamID, "ai_tasks_group", workerName)
 		workers = append(workers, w)
 	}
 
