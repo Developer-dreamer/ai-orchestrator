@@ -5,6 +5,7 @@ import (
 	"ai-orchestrator/internal/config"
 	"ai-orchestrator/internal/config/env"
 	"ai-orchestrator/internal/infra/broker"
+	"ai-orchestrator/internal/infra/manager"
 	"ai-orchestrator/internal/infra/persistence"
 	outbox2 "ai-orchestrator/internal/infra/persistence/repository/outbox"
 	promptRepo "ai-orchestrator/internal/infra/persistence/repository/prompt"
@@ -23,7 +24,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *broker.Producer, func(context.Context) error) {
+func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *manager.Relay, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -50,10 +51,19 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *br
 		ReadCount:    1,
 		BlockTime:    5 * time.Second,
 	}
+
+	backoffOptions := &config.Backoff{
+		Min:          1 * time.Second,
+		Max:          60 * time.Second,
+		Factor:       2,
+		PollInterval: 50 * time.Millisecond,
+	}
+
 	transactor := persistence.NewTransactor(logger, postgresClient)
 	outbox := outbox2.NewRepository(logger, postgresClient)
 
-	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg, outbox, transactor)
+	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
+	relay := manager.NewRelayService(logger, transactor, outbox, producer, backoffOptions)
 
 	pr := promptRepo.NewRepository(logger, postgresClient)
 
@@ -69,7 +79,7 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *br
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-	}, producer, closer
+	}, relay, closer
 }
 
 func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.Router {
@@ -89,7 +99,7 @@ func healthCheck(rw http.ResponseWriter, _ *http.Request) {
 	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
-func GracefulShutdown(server *http.Server, producer *broker.Producer, logger *slog.Logger, tracerShutdown func(context.Context) error) {
+func GracefulShutdown(server *http.Server, relay *manager.Relay, logger *slog.Logger, tracerShutdown func(context.Context) error) {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
@@ -105,10 +115,10 @@ func GracefulShutdown(server *http.Server, producer *broker.Producer, logger *sl
 	}()
 
 	go func() {
-		logger.Info("Starting producer")
-		if err := producer.Start(appCtx); err != nil {
+		logger.Info("Starting relay")
+		if err := relay.Start(appCtx); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				logger.Error("error occurred in producer", "error", err)
+				logger.Error("error occurred in relay", "error", err)
 			}
 		}
 	}()
