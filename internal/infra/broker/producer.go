@@ -19,27 +19,32 @@ type Producer struct {
 }
 
 func NewProducer(l common.Logger, client *redis.Client, streamCfg *config.Stream, cfg *env.APIConfig) *Producer {
-	return &Producer{logger: l, client: client, config: streamCfg, streamID: cfg.RedisStreamID}
+	return &Producer{
+		logger:   l,
+		client:   client,
+		config:   streamCfg,
+		streamID: cfg.RedisStreamID,
+	}
 }
 
-func (p *Producer) Publish(ctx context.Context, data any) error {
-	dataStr, err := json.Marshal(data)
-	if err != nil {
-		p.logger.ErrorContext(ctx, "Failed to convert data to json.", "error", err, "data", data)
-		return err
+func (p *Producer) Publish(ctx context.Context, data json.RawMessage) error {
+	headers := make(map[string]string)
+
+	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
+
+	values := map[string]interface{}{
+		"data": string(data),
 	}
 
-	carrier := propagation.MapCarrier{}
-	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	for k, v := range headers {
+		values[k] = v
+	}
 
-	_, err = p.client.XAdd(ctx, &redis.XAddArgs{
+	_, err := p.client.XAdd(ctx, &redis.XAddArgs{
 		MaxLen: p.config.MaxBacklog,
 		Approx: p.config.UseDelApprox,
 		Stream: p.streamID,
-		Values: map[string]interface{}{
-			"data":     dataStr,
-			"trace_id": carrier.Get("uber-trace-id"),
-		},
+		Values: values,
 	}).Result()
 
 	if err != nil {
