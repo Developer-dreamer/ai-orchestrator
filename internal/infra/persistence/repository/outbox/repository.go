@@ -68,8 +68,6 @@ func (r *Repository) CreateEvent(ctx context.Context, event Event) error {
        )
     `
 
-	r.logger.InfoContext(ctx, "executing query to insert outbox event", "query", query, "repository", "outboxRepository")
-
 	_, err := r.db.NamedExecContext(ctx, query, event)
 	if err != nil {
 		r.logger.ErrorContext(ctx, "failed to insert outbox event", "error", err, "event_id", event.ID)
