@@ -8,15 +8,21 @@ import (
 	"encoding/json"
 )
 
+type Producer interface {
+	Publish(ctx context.Context, data json.RawMessage) error
+}
+
 type SendPromptUsecase struct {
 	logger     common.Logger
 	aiProvider gateway.AIProvider
+	producer   Producer
 }
 
-func NewSendPrompUsecase(l common.Logger, provider gateway.AIProvider) *SendPromptUsecase {
+func NewSendPrompUsecase(l common.Logger, provider gateway.AIProvider, producer Producer) *SendPromptUsecase {
 	return &SendPromptUsecase{
 		logger:     l,
 		aiProvider: provider,
+		producer:   producer,
 	}
 }
 
@@ -36,5 +42,19 @@ func (uc *SendPromptUsecase) Use(ctx context.Context, messageID, entity string) 
 	}
 
 	uc.logger.InfoContext(ctx, "Received the result", "messageID", messageID, "response", res)
+	userPrompt.Response = res
+
+	resultJson, err := json.Marshal(userPrompt)
+	if err != nil {
+		uc.logger.WarnContext(ctx, "failed to marshal result", "error", err)
+		return err
+	}
+
+	err = uc.producer.Publish(ctx, resultJson)
+	if err != nil {
+		uc.logger.WarnContext(ctx, "failed to publish result", "error", err)
+		return err
+	}
+
 	return nil
 }

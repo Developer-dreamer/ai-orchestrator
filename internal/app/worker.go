@@ -4,6 +4,7 @@ import (
 	"ai-orchestrator/internal/config"
 	"ai-orchestrator/internal/config/env"
 	"ai-orchestrator/internal/infra/ai/gemini"
+	"ai-orchestrator/internal/infra/broker"
 	"ai-orchestrator/internal/transport/stream"
 	"ai-orchestrator/internal/use_case/prompt"
 	"context"
@@ -43,14 +44,16 @@ func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consume
 		BlockTime:    5 * time.Second,
 	}
 
+	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg.RedisPubStreamID)
+
 	aiProvider := gemini.NewClient(logger, client)
-	sendPromptUsecase := prompt.NewSendPrompUsecase(logger, aiProvider)
+	sendPromptUsecase := prompt.NewSendPrompUsecase(logger, aiProvider, producer)
 	var workers []*stream.Consumer
 
 	for i := 0; i < cfg.GetNumberOfWorkers(); i++ {
 		workerName := fmt.Sprintf("worker-%d", i)
 
-		w := stream.NewConsumer(logger, sendPromptUsecase, redisClient, streamOptions, cfg.RedisStreamID, "ai_tasks_group", workerName)
+		w := stream.NewConsumer(logger, sendPromptUsecase, redisClient, streamOptions, cfg.RedisSubStreamID, "ai_tasks_group", workerName)
 		workers = append(workers, w)
 	}
 

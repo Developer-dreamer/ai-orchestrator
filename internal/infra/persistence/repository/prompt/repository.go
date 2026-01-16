@@ -26,8 +26,8 @@ func (r *Repository) InsertPrompt(ctx context.Context, prompt model.Prompt) erro
 	dbPrompt.UpdatedAt = dbPrompt.CreatedAt
 
 	query := `
-		INSERT INTO prompts (id, user_id, text, status, created_at, updated_at)
-		VALUES (:id, :user_id, :text, :status, :created_at, :updated_at)
+		INSERT INTO prompts (id, user_id, text, response, status, created_at, updated_at)
+		VALUES (:id, :user_id, :text, :response, :status, :created_at, :updated_at)
 	`
 
 	r.logger.InfoContext(ctx, "executing query to insert new prompt", "query", query, "repository", "promptRepository")

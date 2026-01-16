@@ -62,7 +62,7 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *ma
 	transactor := persistence.NewTransactor(logger, postgresClient)
 	outbox := outbox2.NewRepository(logger, postgresClient)
 
-	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
+	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg.RedisPubStreamID)
 	relay := manager.NewRelayService(logger, transactor, outbox, producer, backoffOptions)
 
 	pr := promptRepo.NewRepository(logger, postgresClient)

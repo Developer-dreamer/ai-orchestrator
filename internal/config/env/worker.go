@@ -7,11 +7,12 @@ import (
 )
 
 type WorkerConfig struct {
-	AppID           string `env:"APP_ID,required"`
-	RedisUri        string `env:"REDIS_URI,required"`
-	JaegerUri       string `env:"JAEGER_URI,required"`
-	RedisStreamID   string `env:"REDIS_STREAM_ID" envDefault:"tasks"`
-	NumberOfWorkers string `env:"NUMBER_OF_WORKERS" envDefault:"1"`
+	AppID            string `env:"APP_ID,required"`
+	RedisUri         string `env:"REDIS_URI,required"`
+	JaegerUri        string `env:"JAEGER_URI,required"`
+	RedisSubStreamID string `env:"REDIS_SUB_STREAM_ID" envDefault:"tasks"`
+	RedisPubStreamID string `env:"REDIS_PUB_STREAM_ID" envDefault:"results"`
+	NumberOfWorkers  string `env:"NUMBER_OF_WORKERS" envDefault:"1"`
 }
 
 func LoadWorkerConfig() (*WorkerConfig, error) {

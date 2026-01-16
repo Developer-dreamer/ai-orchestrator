@@ -3,7 +3,6 @@ package broker
 import (
 	"ai-orchestrator/internal/common"
 	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/env"
 	"context"
 	"encoding/json"
 	"github.com/redis/go-redis/v9"
@@ -18,12 +17,12 @@ type Producer struct {
 	streamID string
 }
 
-func NewProducer(l common.Logger, client *redis.Client, streamCfg *config.Stream, cfg *env.APIConfig) *Producer {
+func NewProducer(l common.Logger, client *redis.Client, streamCfg *config.Stream, redisStreamID string) *Producer {
 	return &Producer{
 		logger:   l,
 		client:   client,
 		config:   streamCfg,
-		streamID: cfg.RedisStreamID,
+		streamID: redisStreamID,
 	}
 }
 
