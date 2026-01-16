@@ -35,7 +35,10 @@ used for caching, so there is no sense at this stage to integrate another compli
 gives you in this concrete case faster processing than basic RabbitMQ. So consider all these aspects, I decided to not overengineer my project and stand by Redis Stream.
 
 Here is the underlying architecture of my approach:
-![](doc/diagram/microservice_communication.png)
+![](doc/diagram/architecture.png)
+> [!NOTE]
+> You can see the full design [here](https://excalidraw.com/#json=mgo5-7O6Juynd4xIOb3tq,GLRfdZp3B8TTXyg0suKXPg)
+
 
 ## Distributed Tracing
 The distributed tracing is implemented using Jaeger, OpenTelemetry and Grafana. Here is the workflow:
