@@ -9,13 +9,16 @@ import (
 	"ai-orchestrator/internal/infra/persistence"
 	outbox2 "ai-orchestrator/internal/infra/persistence/repository/outbox"
 	promptRepo "ai-orchestrator/internal/infra/persistence/repository/prompt"
+	"ai-orchestrator/internal/infra/websocket"
 	promptHandler "ai-orchestrator/internal/transport/http/handler/prompt"
 	"ai-orchestrator/internal/transport/http/helper"
 	"ai-orchestrator/internal/transport/middleware"
+	"ai-orchestrator/internal/transport/stream"
 	savePromptUsecase "ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
+	wslib "github.com/gorilla/websocket"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,7 +27,7 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *manager.Relay, func(context.Context) error) {
+func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *manager.Relay, *stream.ResConsumer, func(context.Context) error) {
 	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
 	if err != nil {
 		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -65,12 +68,21 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *ma
 	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg.RedisPubStreamID)
 	relay := manager.NewRelayService(logger, transactor, outbox, producer, backoffOptions)
 
+	upgrader := &wslib.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true }, // Restrict in production!
+	}
+
+	hub := websocket.NewHub()
+	socket := websocket.NewManager(logger, upgrader, hub)
 	pr := promptRepo.NewRepository(logger, postgresClient)
 
 	savePrompt := savePromptUsecase.NewSavePromptUsecase(logger, pr, transactor, outbox)
 	ph := promptHandler.NewHandler(logger, savePrompt)
 
-	r := registerRoutes(ph, logger)
+	saveResponse := savePromptUsecase.NewSaveResponse(logger, socket, pr)
+	consumer := stream.NewResConsumer(logger, redisClient, streamOptions, saveResponse, cfg.RedisResStreamID, "ai_tasks_group", "worker-1")
+	r := registerRoutes(ph, socket, logger)
+
 	logger.Info("Starting server")
 
 	return &http.Server{
@@ -79,10 +91,10 @@ func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *ma
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-	}, relay, closer
+	}, relay, consumer, closer
 }
 
-func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.Router {
+func registerRoutes(handler *promptHandler.Handler, socketManager *websocket.Manager, logger common.Logger) *mux.Router {
 	r := mux.NewRouter()
 
 	recoveryManager := middleware.NewRecoveryManager(logger)
@@ -92,6 +104,8 @@ func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.R
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
 	r.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
 
+	r.HandleFunc("/ws", socketManager.ServeWS).Methods(http.MethodGet)
+
 	return r
 }
 
@@ -99,7 +113,7 @@ func healthCheck(rw http.ResponseWriter, _ *http.Request) {
 	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
-func GracefulShutdown(server *http.Server, relay *manager.Relay, logger *slog.Logger, tracerShutdown func(context.Context) error) {
+func GracefulShutdown(server *http.Server, relay *manager.Relay, consumer *stream.ResConsumer, logger *slog.Logger, tracerShutdown func(context.Context) error) {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
@@ -119,6 +133,15 @@ func GracefulShutdown(server *http.Server, relay *manager.Relay, logger *slog.Lo
 		if err := relay.Start(appCtx); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Error("error occurred in relay", "error", err)
+			}
+		}
+	}()
+
+	go func() {
+		logger.Info("Starting consumer")
+		if err := consumer.ConsumeResult(appCtx); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				logger.Error("error occurred in consumer", "error", err)
 			}
 		}
 	}()

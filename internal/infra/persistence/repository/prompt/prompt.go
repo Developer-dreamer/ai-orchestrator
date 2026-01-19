@@ -7,7 +7,7 @@ import (
 )
 
 type Prompt struct {
-	Id        uuid.UUID `db:"id"`
+	ID        uuid.UUID `db:"id"`
 	UserID    uuid.UUID `db:"user_id"`
 	Text      string    `db:"text"`
 	Response  string    `db:"response"`
@@ -18,7 +18,7 @@ type Prompt struct {
 
 func FromDomain(d model.Prompt) Prompt {
 	return Prompt{
-		Id:       d.ID,
+		ID:       d.ID,
 		UserID:   d.UserID,
 		Text:     d.Text,
 		Response: d.Response,

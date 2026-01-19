@@ -5,7 +5,6 @@ import (
 	"ai-orchestrator/internal/config"
 	"context"
 	"errors"
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,64 +15,49 @@ import (
 	"time"
 )
 
-const (
-	minBackoff    = 1 * time.Second
-	maxBackoff    = 60 * time.Second
-	backoffFactor = 2
-)
-
-type UseCase interface {
-	Use(ctx context.Context, messageID, entity string) error
-}
-type Consumer struct {
+type ResConsumer struct {
 	logger   common.Logger
-	usecase  UseCase
 	client   *redis.Client
 	config   *config.Stream
 	streamID string
 	WorkerID string
 	groupID  string
+
+	usecase UseCase
 }
 
-func NewConsumer(logger common.Logger, usecase UseCase, client *redis.Client, cfg *config.Stream, redisStreamID, group, worker string) *Consumer {
-	if worker == "" {
-		worker = "worker-" + uuid.New().String()
-	}
-	if group == "" {
-		group = "ai_tasks_group"
-	}
-
-	return &Consumer{
+func NewResConsumer(logger common.Logger, client *redis.Client, cfg *config.Stream, usecase UseCase, redisStreamID, groupID, workerID string) *ResConsumer {
+	return &ResConsumer{
 		logger:   logger,
-		usecase:  usecase,
 		client:   client,
 		config:   cfg,
+		usecase:  usecase,
 		streamID: redisStreamID,
-		groupID:  group,
-		WorkerID: worker,
+		groupID:  groupID,
+		WorkerID: workerID,
 	}
 }
 
-func (c *Consumer) Consume(ctx context.Context) error {
-	c.logger.Info("Worker started", "id", c.WorkerID)
+func (c *ResConsumer) ConsumeResult(ctx context.Context) error {
+	c.logger.Info("Worker started")
 
-	currentBackoff := minBackoff
-
-	err := c.createGroup(ctx, c.streamID, c.groupID)
+	err := c.createGroupRes(ctx, c.streamID, c.groupID)
 	if err != nil {
 		c.logger.Error("Failed to create group", "id", c.WorkerID, "err", err)
 		return err
 	}
 
+	currentBackoff := minBackoff
+
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Info("Stopping consumer", "worker_id", c.WorkerID)
+			c.logger.Info("Stopping consumer")
 			return ctx.Err()
 		default:
-			headers, messageID, entity, err := c.consume(ctx)
+			headers, messageID, entity, err := c.consumeResult(ctx, c.streamID)
 			if err != nil {
-				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id", c.groupID, "worker_id", c.WorkerID)
+				c.logger.Error("Error consuming message from stream", "error", err, "stream_id", c.streamID, "group_id")
 
 				jitter := time.Duration(rand.Int63n(int64(currentBackoff) / 5))
 				sleepTime := currentBackoff + jitter
@@ -102,8 +86,8 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 			parentCtx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.MapCarrier(headers))
 
-			tracer := otel.Tracer("worker")
-			ctx, span := tracer.Start(parentCtx, "worker_process",
+			tracer := otel.Tracer("api")
+			ctx, span := tracer.Start(parentCtx, "send_result",
 				trace.WithSpanKind(trace.SpanKindConsumer),
 				trace.WithAttributes(attribute.String("redis.message_id", messageID)),
 			)
@@ -113,7 +97,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			span.End()
 			if err == nil {
 				ackCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-				ackErr := c.ack(ackCtx, c.streamID, c.groupID, messageID)
+				ackErr := c.ackRes(ackCtx, messageID)
 				cancel()
 
 				if ackErr != nil {
@@ -126,7 +110,7 @@ func (c *Consumer) Consume(ctx context.Context) error {
 	}
 }
 
-func (c *Consumer) createGroup(ctx context.Context, stream, group string) error {
+func (c *ResConsumer) createGroupRes(ctx context.Context, stream, group string) error {
 
 	const EarliestMessage = "0" // Redis specific alias: start from the beginning of the stream
 
@@ -141,12 +125,12 @@ func (c *Consumer) createGroup(ctx context.Context, stream, group string) error 
 }
 
 // Consume Consumes a message from the specified stream. Returns Headers, MessageID, Data, Error
-func (c *Consumer) consume(ctx context.Context) (map[string]string, string, string, error) {
+func (c *ResConsumer) consumeResult(ctx context.Context, stream string) (map[string]string, string, string, error) {
 
 	const undeliveredMessages = ">" // Redis specific alias: starts from the unconsumed message
 
 	res, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Streams:  []string{c.streamID, undeliveredMessages},
+		Streams:  []string{stream, undeliveredMessages},
 		Group:    c.groupID,
 		Consumer: c.WorkerID,
 		Count:    c.config.ReadCount,
@@ -161,7 +145,7 @@ func (c *Consumer) consume(ctx context.Context) (map[string]string, string, stri
 			return nil, "", "", nil
 		}
 
-		c.logger.Error("Failed to consume message.", "error", err, "stream", c.streamID, "group", c.groupID, "consumer", c.WorkerID)
+		c.logger.Error("Failed to consume message.", "error", err, "stream", stream)
 		return nil, "", "", err
 	}
 
@@ -184,15 +168,14 @@ func (c *Consumer) consume(ctx context.Context) (map[string]string, string, stri
 		}
 	}
 
-	c.logger.Debug("Received message", "stream", c.streamID, "group", c.groupID, "consumer", c.WorkerID, "data", data)
+	c.logger.Debug("Received message", "stream", stream, "data", data)
 	return headers, message.ID, data, nil
 }
 
-// Ack Acknowledges a processed message by ID
-func (c *Consumer) ack(ctx context.Context, stream, group, messageId string) error {
-	_, err := c.client.XAck(ctx, stream, group, messageId).Result()
+func (c *ResConsumer) ackRes(ctx context.Context, messageId string) error {
+	_, err := c.client.XAck(ctx, c.streamID, c.groupID, messageId).Result()
 	if err != nil {
-		c.logger.Error("Acknowledgment failed", "stream", stream, "group", group, "messageId", messageId, "error", err)
+		c.logger.Error("Acknowledgment failed", "stream", c.streamID, "group", c.groupID, "messageId", messageId, "error", err)
 		return err
 	}
 	return nil

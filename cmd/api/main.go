@@ -15,6 +15,6 @@ func main() {
 	}
 	logger := config.NewLogger(slog.LevelDebug)
 
-	server, producer, tracerShutdown := app.SetupHttpServer(cfg, logger)
-	app.GracefulShutdown(server, producer, logger, tracerShutdown)
+	server, producer, consumer, tracerShutdown := app.SetupHttpServer(cfg, logger)
+	app.GracefulShutdown(server, producer, consumer, logger, tracerShutdown)
 }

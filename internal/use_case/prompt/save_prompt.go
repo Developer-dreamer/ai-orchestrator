@@ -11,10 +11,6 @@ type Transactor interface {
 	WithinTransaction(ctx context.Context, tFunc func(ctx context.Context) error) error
 }
 
-type Repository interface {
-	InsertPrompt(ctx context.Context, prompt model.Prompt) error
-}
-
 type OutboxRepository interface {
 	CreateEvent(ctx context.Context, event outbox.Event) error
 }
