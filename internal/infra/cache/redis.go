@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,15 +16,22 @@ var (
 )
 
 type Service struct {
-	logger common.Logger
+	logger logger.Logger
 	client *redis.Client
 }
 
-func NewService(logger common.Logger, client *redis.Client) *Service {
-	return &Service{
-		logger: logger,
-		client: client,
+func NewService(l logger.Logger, client *redis.Client) (*Service, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
 	}
+	if client == nil {
+		return nil, errors.New("client is nil")
+	}
+
+	return &Service{
+		logger: l,
+		client: client,
+	}, nil
 }
 
 func (s *Service) Get(ctx context.Context, key string) (string, error) {

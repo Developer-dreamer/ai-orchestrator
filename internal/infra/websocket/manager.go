@@ -1,13 +1,16 @@
 package websocket
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
 )
+
+var ErrNilHub = errors.New("hub is nil")
 
 type ConnectionHub interface {
 	Add(userID string, conn *websocket.Conn) *Client
@@ -16,20 +19,32 @@ type ConnectionHub interface {
 	GetAllClients() map[string][]*Client
 }
 
+var ErrNilUpgrader = errors.New("websocket upgrader is nil")
+
 type Manager struct {
-	logger   common.Logger
+	logger   logger.Logger
 	upgrader *websocket.Upgrader
 	clients  *Hub
 	mu       sync.RWMutex
 }
 
-func NewManager(logger common.Logger, upgrader *websocket.Upgrader, hub *Hub) *Manager {
+func NewManager(l logger.Logger, upgrader *websocket.Upgrader, hub *Hub) (*Manager, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
+	}
+	if upgrader == nil {
+		return nil, ErrNilUpgrader
+	}
+	if hub == nil {
+		return nil, ErrNilHub
+	}
+
 	return &Manager{
-		logger:   logger,
+		logger:   l,
 		upgrader: upgrader,
 		clients:  hub,
 		mu:       sync.RWMutex{},
-	}
+	}, nil
 }
 
 func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {

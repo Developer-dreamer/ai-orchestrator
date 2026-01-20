@@ -1,4 +1,4 @@
-package tracing
+package logger
 
 import (
 	"context"
@@ -18,6 +18,10 @@ type TraceHandler struct {
 func (h TraceHandler) Handle(ctx context.Context, r slog.Record) error {
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
 		r.AddAttrs(slog.String("trace_id", span.SpanContext().TraceID().String()))
+	}
+
+	if msgID := GetMessageID(ctx); msgID != "" {
+		r.AddAttrs(slog.String("message_id", msgID))
 	}
 
 	return h.Handler.Handle(ctx, r)

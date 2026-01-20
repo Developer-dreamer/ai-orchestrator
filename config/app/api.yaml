@@ -1,0 +1,34 @@
+app:
+  id: "ai-orchestrator_api"
+  port: "8080"
+  env: "development"
+  migrations_dir: "/app/db/migrations"
+
+  backoff:
+    min: "1s"
+    max: "60s"
+    factor: 2.0
+    poll_interval: "50ms"
+
+postgres:
+  host: postgres
+  port: 5432
+  user: postgres
+  db_name: orchestrator_db
+
+redis:
+  uri: "redis:6379"
+  pub_stream_id: "tasks"
+  sub_stream_id: "results"
+
+  stream:
+    max_backlog: 1000
+    use_del_approx: true
+    read_count: 1
+    block_time: "5s"
+
+  cache:
+    ttl: "5m"
+
+otel:
+  uri: "otel-collector:4318"

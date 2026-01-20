@@ -1,7 +1,7 @@
 package prompt
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"ai-orchestrator/internal/domain/gateway"
 	"ai-orchestrator/internal/domain/model"
 	"context"
@@ -13,21 +13,28 @@ type Producer interface {
 }
 
 type SendPromptUsecase struct {
-	logger     common.Logger
+	logger     logger.Logger
 	aiProvider gateway.AIProvider
 	producer   Producer
 }
 
-func NewSendPrompUsecase(l common.Logger, provider gateway.AIProvider, producer Producer) *SendPromptUsecase {
+func NewSendPrompUsecase(l logger.Logger, provider gateway.AIProvider, producer Producer) (*SendPromptUsecase, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
+	}
+	if provider == nil {
+		return nil, gateway.ErrNilProvider
+	}
+
 	return &SendPromptUsecase{
 		logger:     l,
 		aiProvider: provider,
 		producer:   producer,
-	}
+	}, nil
 }
 
-func (uc *SendPromptUsecase) Use(ctx context.Context, messageID, entity string) error {
-	uc.logger.InfoContext(ctx, "Processing message", "messageID", messageID)
+func (uc *SendPromptUsecase) Use(ctx context.Context, entity string) error {
+	uc.logger.InfoContext(ctx, "Processing message")
 
 	userPrompt := &model.Prompt{}
 	err := json.Unmarshal([]byte(entity), userPrompt)
@@ -41,7 +48,7 @@ func (uc *SendPromptUsecase) Use(ctx context.Context, messageID, entity string) 
 		return err
 	}
 
-	uc.logger.InfoContext(ctx, "Received the result", "messageID", messageID, "response", res)
+	uc.logger.InfoContext(ctx, "Received the result", "response", res)
 	userPrompt.Response = res
 
 	resultJson, err := json.Marshal(userPrompt)

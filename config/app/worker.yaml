@@ -1,0 +1,18 @@
+app:
+  id: "ai-orchestrator_worker"
+  env: "production"
+  number_of_workers: 5
+
+redis:
+  uri: "redis:6379"
+  pub_stream_id: "results"
+  sub_stream_id: "tasks"
+
+  stream:
+    max_backlog: 1000
+    use_del_approx: true
+    read_count: 1
+    block_time: "5s"
+
+otel:
+  uri: "otel-collector:4318"

@@ -1,33 +1,52 @@
 package prompt
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"ai-orchestrator/internal/domain/model"
 	"ai-orchestrator/internal/infra/persistence/repository/outbox"
 	"context"
+	"errors"
 )
+
+var ErrNilTransactor = errors.New("transactor is nil")
 
 type Transactor interface {
 	WithinTransaction(ctx context.Context, tFunc func(ctx context.Context) error) error
 }
+
+var ErrNilOutbox = errors.New("outbox is nil")
 
 type OutboxRepository interface {
 	CreateEvent(ctx context.Context, event outbox.Event) error
 }
 
 type SavePromptUsecase struct {
-	logger common.Logger
+	logger logger.Logger
 	repo   Repository
 	tx     Transactor
 	outbox OutboxRepository
 }
 
-func NewSavePromptUsecase(l common.Logger, repository Repository, tx Transactor, or OutboxRepository) *SavePromptUsecase {
+func NewSavePromptUsecase(l logger.Logger, repository Repository, tx Transactor, or OutboxRepository) (*SavePromptUsecase, error) {
+	if l == nil {
+		return nil, errors.New("logger is nil")
+	}
+	if repository == nil {
+		return nil, ErrNilRepository
+	}
+	if tx == nil {
+		return nil, ErrNilTransactor
+	}
+	if or == nil {
+		return nil, ErrNilOutbox
+	}
+
 	return &SavePromptUsecase{
 		logger: l,
 		repo:   repository,
 		tx:     tx,
-		outbox: or}
+		outbox: or,
+	}, nil
 }
 
 func (s *SavePromptUsecase) PostPrompt(ctx context.Context, prompt model.Prompt) error {

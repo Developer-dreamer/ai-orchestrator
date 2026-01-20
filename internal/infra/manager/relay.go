@@ -2,7 +2,8 @@ package manager
 
 import (
 	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/config"
+	"ai-orchestrator/internal/common/logger"
+	"ai-orchestrator/internal/config/shared"
 	"ai-orchestrator/internal/infra/persistence/repository/outbox"
 	"context"
 	"encoding/json"
@@ -15,41 +16,63 @@ import (
 	"time"
 )
 
+var ErrNilOutbox = errors.New("outbox is nil")
+
 type Outbox interface {
 	GetAllPendingEvents(ctx context.Context, count int) ([]outbox.Event, error)
 	ChangeEventStatus(ctx context.Context, eventID uuid.UUID, eventStatus outbox.Status) error
 	IncrementRetryCount(ctx context.Context, eventID uuid.UUID, errorMessage string) error
 }
 
+var ErrNilProducer = errors.New("producer is nil")
+
 type Producer interface {
 	Publish(ctx context.Context, data json.RawMessage) error
 }
 
+var ErrNilConfig = errors.New("backoff config is nil")
+
 type Relay struct {
-	logger        common.Logger
-	tx            common.TransactionManager
-	repo          Outbox
-	producer      Producer
-	backoffConfig *config.Backoff
+	logger     logger.Logger
+	tx         common.TransactionManager
+	repo       Outbox
+	producer   Producer
+	backoffCfg *shared.BackoffConfig
 }
 
-func NewRelayService(logger common.Logger, tx common.TransactionManager, repo Outbox, producer Producer, backoffCfg *config.Backoff) *Relay {
-	return &Relay{
-		logger:        logger,
-		tx:            tx,
-		repo:          repo,
-		producer:      producer,
-		backoffConfig: backoffCfg,
+func NewRelayService(l logger.Logger, tx common.TransactionManager, repo Outbox, producer Producer, backoffCfg *shared.BackoffConfig) (*Relay, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
 	}
+	if tx == nil {
+		return nil, common.ErrNilTransactionManager
+	}
+	if repo == nil {
+		return nil, ErrNilOutbox
+	}
+	if producer == nil {
+		return nil, ErrNilProducer
+	}
+	if backoffCfg == nil {
+		return nil, ErrNilConfig
+	}
+
+	return &Relay{
+		logger:     l,
+		tx:         tx,
+		repo:       repo,
+		producer:   producer,
+		backoffCfg: backoffCfg,
+	}, nil
 }
 
 func (r *Relay) Start(ctx context.Context) error {
 	r.logger.Info("Publisher started")
 
-	currentBackoff := r.backoffConfig.Min
+	currentBackoff := r.backoffCfg.Min
 	maxEvents := 10
 
-	ticker := time.NewTicker(r.backoffConfig.PollInterval)
+	ticker := time.NewTicker(r.backoffCfg.PollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -70,7 +93,7 @@ func (r *Relay) Start(ctx context.Context) error {
 				continue
 			}
 
-			currentBackoff = r.backoffConfig.Min
+			currentBackoff = r.backoffCfg.Min
 			if len(events) == 0 {
 				continue
 			}
@@ -151,9 +174,9 @@ func (r *Relay) backOff(ctx context.Context, currentBackoff time.Duration) (time
 		// Time's up - continuing work
 	}
 
-	currentBackoff *= time.Duration(r.backoffConfig.Factor)
-	if currentBackoff > r.backoffConfig.Max {
-		currentBackoff = r.backoffConfig.Max
+	currentBackoff *= time.Duration(r.backoffCfg.Factor)
+	if currentBackoff > r.backoffCfg.Max {
+		currentBackoff = r.backoffCfg.Max
 	}
 
 	return currentBackoff, nil

@@ -1,4 +1,4 @@
-package config
+package connector
 
 import (
 	"context"
@@ -6,13 +6,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"time"
 )
-
-type Stream struct {
-	MaxBacklog   int64
-	UseDelApprox bool
-	ReadCount    int64
-	BlockTime    time.Duration
-}
 
 func ConnectToRedis(redisUri string) (*redis.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

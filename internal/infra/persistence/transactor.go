@@ -1,22 +1,26 @@
 package persistence
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 )
 
 type Transactor struct {
-	logger common.Logger
+	logger logger.Logger
 	db     *sqlx.DB
 }
 
-func NewTransactor(logger common.Logger, db *sqlx.DB) *Transactor {
-	return &Transactor{
-		logger: logger,
-		db:     db,
+func NewTransactor(l logger.Logger, db *sqlx.DB) (*Transactor, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
 	}
+
+	return &Transactor{
+		logger: l,
+		db:     db,
+	}, nil
 }
 
 func (t *Transactor) WithinTransaction(ctx context.Context, tFunc func(ctx context.Context) error) error {

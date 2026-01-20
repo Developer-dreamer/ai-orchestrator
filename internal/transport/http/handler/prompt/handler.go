@@ -1,28 +1,38 @@
 package prompt
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"ai-orchestrator/internal/domain/model"
 	"ai-orchestrator/internal/infra/telemetry/tracing"
 	"ai-orchestrator/internal/transport/http/helper"
 	"context"
+	"errors"
 	"net/http"
 )
+
+var ErrNilService = errors.New("service is nil")
 
 type Service interface {
 	PostPrompt(ctx context.Context, prompt model.Prompt) error
 }
 
 type Handler struct {
-	logger  common.Logger
+	logger  logger.Logger
 	service Service
 }
 
-func NewHandler(l common.Logger, s Service) *Handler {
+func NewHandler(l logger.Logger, s Service) (*Handler, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
+	}
+	if s == nil {
+		return nil, ErrNilService
+	}
+
 	return &Handler{
 		logger:  l,
 		service: s,
-	}
+	}, nil
 }
 
 func (h *Handler) PostPrompt(rw http.ResponseWriter, r *http.Request) {

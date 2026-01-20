@@ -1,7 +1,7 @@
-package config
+package setup
 
 import (
-	"ai-orchestrator/internal/infra/telemetry/tracing"
+	"ai-orchestrator/internal/common/logger"
 	"log/slog"
 	"os"
 )
@@ -11,8 +11,8 @@ func NewLogger(level slog.Level) *slog.Logger {
 		Level: level,
 	})
 
-	logger := slog.New(tracing.TraceHandler{Handler: baseHandler})
-	slog.SetDefault(logger)
+	l := slog.New(logger.TraceHandler{Handler: baseHandler})
+	slog.SetDefault(l)
 
-	return logger
+	return l
 }
