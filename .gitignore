@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 .idea/
 # .vscode/
+
+# Terraform files
+/deployment/terraform/prod/.terraform/
