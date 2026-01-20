@@ -5,7 +5,16 @@ import (
 	"ai-orchestrator/internal/config/worker"
 	"fmt"
 	"github.com/ilyakaznacheev/cleanenv"
+	"os"
 )
+
+func LoadCfgFilesDir() string {
+	str := os.Getenv("YAML_CFG_DIR")
+	if str == "" {
+		return "../../config/app/api.yaml"
+	}
+	return str
+}
 
 func Load[T api.Config | worker.Config](path string) (*T, error) {
 	var cfg T

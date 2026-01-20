@@ -56,6 +56,8 @@ func (sr *SaveResponse) Use(ctx context.Context, entity string) error {
 	if result.Error != "" {
 		domainPrompt.Status = model.Failed
 		domainPrompt.Error = result.Error
+	} else {
+		domainPrompt.Status = model.Completed
 	}
 
 	err = sr.repo.UpdatePrompt(ctx, *domainPrompt)
@@ -72,7 +74,7 @@ func (sr *SaveResponse) Use(ctx context.Context, entity string) error {
 	}
 	err = sr.socket.SendToClient(ctx, domainPrompt.UserID.String(), wsJson)
 	if err != nil {
-		sr.logger.WarnContext(ctx, "failed to save prompt", "error", err)
+		sr.logger.WarnContext(ctx, "failed to send result to client", "error", err)
 		return err
 	}
 

@@ -74,7 +74,7 @@ func (m *Manager) SendToClient(ctx context.Context, userID string, data json.Raw
 	clients, err := m.clients.GetClientByID(userID)
 	m.mu.RUnlock()
 	if err != nil {
-		m.logger.ErrorContext(ctx, "Not clients found for userID", "userID", userID)
+		m.logger.ErrorContext(ctx, "No clients found for userID", "userID", userID)
 		return err
 	}
 

@@ -5,6 +5,7 @@ import (
 	"ai-orchestrator/internal/domain/gateway"
 	"context"
 	"encoding/json"
+	"errors"
 )
 
 type Producer interface {
@@ -17,12 +18,15 @@ type SendPromptUsecase struct {
 	producer   Producer
 }
 
-func NewSendPrompUsecase(l logger.Logger, provider gateway.AIProvider, producer Producer) (*SendPromptUsecase, error) {
+func NewSendPromptUsecase(l logger.Logger, provider gateway.AIProvider, producer Producer) (*SendPromptUsecase, error) {
 	if l == nil {
 		return nil, logger.ErrNilLogger
 	}
 	if provider == nil {
 		return nil, gateway.ErrNilProvider
+	}
+	if producer == nil {
+		return nil, errors.New("producer is nil")
 	}
 
 	return &SendPromptUsecase{

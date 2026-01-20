@@ -55,7 +55,7 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func
 		l.Error("Failed to initiate ai provider.", "error", err)
 		os.Exit(1)
 	}
-	sendPromptUsecase, err := prompt.NewSendPrompUsecase(l, aiProvider, producer)
+	sendPromptUsecase, err := prompt.NewSendPromptUsecase(l, aiProvider, producer)
 	if err != nil {
 		l.Error("Failed to initiate sendPrompUsecase.", "error", err)
 		os.Exit(1)

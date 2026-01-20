@@ -29,7 +29,7 @@ type SavePromptUsecase struct {
 
 func NewSavePromptUsecase(l logger.Logger, repository Repository, tx Transactor, or OutboxRepository) (*SavePromptUsecase, error) {
 	if l == nil {
-		return nil, errors.New("logger is nil")
+		return nil, logger.ErrNilLogger
 	}
 	if repository == nil {
 		return nil, ErrNilRepository

@@ -5,11 +5,12 @@ import (
 	"ai-orchestrator/internal/domain/model"
 	"context"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
+
+var ErrPromptNotFound = errors.New("prompt not found")
 
 type Repository struct {
 	logger logger.Logger
@@ -40,11 +41,11 @@ func (r *Repository) GetPromptByID(ctx context.Context, id uuid.UUID) (*model.Pr
 
 	err := r.db.GetContext(ctx, &prompt, query, id)
 	if err != nil {
-		r.logger.ErrorContext(ctx, "failed to get prompt", "id", id, "error", err)
+		return nil, err
 	}
 
-	domainProject := prompt.ToDomain()
-	return &domainProject, err
+	domainPrompt := prompt.ToDomain()
+	return &domainPrompt, err
 }
 
 func (r *Repository) InsertPrompt(ctx context.Context, prompt model.Prompt) error {
@@ -91,7 +92,7 @@ func (r *Repository) UpdatePrompt(ctx context.Context, prompt model.Prompt) erro
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return fmt.Errorf("prompt not found to update")
+		return ErrPromptNotFound
 	}
 
 	return nil

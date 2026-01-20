@@ -19,6 +19,9 @@ func NewBackoff(l logger.Logger, cfg *shared.BackoffConfig) (*Backoff, error) {
 	if l == nil {
 		return nil, logger.ErrNilLogger
 	}
+	if cfg == nil {
+		return nil, errors.New("backoff config is nil")
+	}
 
 	return &Backoff{
 		logger:         l,

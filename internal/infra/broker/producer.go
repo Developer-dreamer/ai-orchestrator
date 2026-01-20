@@ -5,6 +5,7 @@ import (
 	"ai-orchestrator/internal/config/shared"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -19,6 +20,12 @@ type Producer struct {
 func NewProducer(l logger.Logger, client *redis.Client, streamCfg *shared.StreamConfig) (*Producer, error) {
 	if l == nil {
 		return nil, logger.ErrNilLogger
+	}
+	if client == nil {
+		return nil, errors.New("redis client is nil")
+	}
+	if streamCfg == nil {
+		return nil, errors.New("redis stream config is nil")
 	}
 
 	return &Producer{
