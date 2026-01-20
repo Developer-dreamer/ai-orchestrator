@@ -50,38 +50,24 @@ To run the compose file, you are supposed to create `.api_env` and `.worker_env`
 next variables:
 **.api_env**
 ```dotenv
-PORT=8080
-APP_ID=ai-orchestrator_api
-REDIS_URI=redis:6379
-JAEGER_URI=otel-collector:4318
-CACHE_TTL_MINUTES=5
-REDIS_PUB_STREAM_ID=tasks
-REDIS_RES_STREAM_ID=results
-
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_NAME=orchestrator_db
-
-POSTGRES_URI="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_NAME}?sslmode=disable"
-MIGRATIONS_DIR="/app/db/migrations"
+YAML_CFG_DIR=/app/config/app/api.yaml
+POSTGRES_PASSWORD=your_secure_password
 ```
 **.worker_env**
 ```dotenv
-APP_ID=ai-orchestrator_worker
-REDIS_URI=redis:6379
-JAEGER_URI=otel-collector:4318
-REDIS_SUB_STREAM_ID=tasks
-REDIS_PUB_STREAM_ID=results
-NUMBER_OF_WORKERS=5
-
+YAML_CFG_DIR=/app/config/app/api.yaml
 GEMINI_API_KEY=your_api_key
 ```
 
 > [!NOTE]
 > To get an API key for using Gemini, go to "https://aistudio.google.com/". Click **View API keys**. 
 > Copy the one you have enabled (by default, a free-tier API key is enabled). Paste into the .worker_env file.
+
+All other configurations located in `config/app/.` so you can go here and check it out. There is located configurations for 
+Redis streams, Postgres, Backoff, etc.
+
+> [!NOTE]
+> You might need to update you non-sensitive PostgreSQL credentials inside `config/app/api.yaml`
 
 After this run: `docker compose -f deployment/docker/docker-compose.yml up --build -d`
 
@@ -91,6 +77,7 @@ Make a `GET` request via **Postman** or any other tool you like to the `http://l
 If response **200**, everything is fine.
 
 ## Observability & Distributed Tracing
+
 The distributed tracing is implemented using OpenTelemetry and Grafana + Tempo.
 To view the traces, you need to open `http://localhost:3000`, then in the login panel, enter the following credentials:
 ```
