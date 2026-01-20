@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
@@ -29,14 +30,31 @@ func NewRepository(l logger.Logger, db *sqlx.DB) (*Repository, error) {
 	}, nil
 }
 
+func (r *Repository) GetPromptByID(ctx context.Context, id uuid.UUID) (*model.Prompt, error) {
+	var prompt Prompt
+	query := `
+		SELECT id, user_id, model_id, text, response, status, error, created_at, updated_at 
+		FROM prompts 
+		WHERE id = $1
+	`
+
+	err := r.db.GetContext(ctx, &prompt, query, id)
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to get prompt", "id", id, "error", err)
+	}
+
+	domainProject := prompt.ToDomain()
+	return &domainProject, err
+}
+
 func (r *Repository) InsertPrompt(ctx context.Context, prompt model.Prompt) error {
 	dbPrompt := FromDomain(prompt)
 	dbPrompt.CreatedAt = time.Now().UTC()
 	dbPrompt.UpdatedAt = dbPrompt.CreatedAt
 
 	query := `
-		INSERT INTO prompts (id, user_id, text, response, status, created_at, updated_at)
-		VALUES (:id, :user_id, :text, :response, :status, :created_at, :updated_at)
+		INSERT INTO prompts (id, user_id, model_id, text, response, status, error, created_at, updated_at)
+		VALUES (:id, :user_id, :model_id, :text, :response, :status, :error, :created_at, :updated_at)
 	`
 
 	r.logger.InfoContext(ctx, "executing query to insert new prompt", "query", query, "repository", "promptRepository")
@@ -57,7 +75,8 @@ func (r *Repository) UpdatePrompt(ctx context.Context, prompt model.Prompt) erro
 	query := `
         UPDATE prompts 
         SET response = :response, 
-            status = :status, 
+            status = :status,
+            error = :error,
             updated_at = :updated_at
         WHERE id = :id
     `

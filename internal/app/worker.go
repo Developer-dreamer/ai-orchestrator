@@ -6,8 +6,9 @@ import (
 	"ai-orchestrator/internal/config/worker"
 	"ai-orchestrator/internal/infra/ai/gemini"
 	"ai-orchestrator/internal/infra/broker"
+	"ai-orchestrator/internal/infra/manager"
 	"ai-orchestrator/internal/infra/telemetry/tracing"
-	"ai-orchestrator/internal/transport/stream"
+	prompt2 "ai-orchestrator/internal/transport/stream"
 	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
@@ -19,7 +20,7 @@ import (
 	"syscall"
 )
 
-func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*stream.Consumer, func(context.Context) error) {
+func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func(context.Context) error) {
 	redisClient, err := connector.ConnectToRedis(cfg.Redis.URI)
 	if err != nil {
 		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
@@ -43,7 +44,13 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*stream.Consumer, func(
 		os.Exit(1)
 	}
 
-	aiProvider, err := gemini.NewClient(l, client)
+	backoffManager, err := manager.NewBackoff(l, &cfg.App.Backoff)
+	if err != nil {
+		l.Error("Failed to initiate backoffManager.", "error", err)
+		os.Exit(1)
+	}
+
+	aiProvider, err := gemini.NewClient(l, client, *backoffManager)
 	if err != nil {
 		l.Error("Failed to initiate ai provider.", "error", err)
 		os.Exit(1)
@@ -54,7 +61,7 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*stream.Consumer, func(
 		os.Exit(1)
 	}
 
-	var workers []*stream.Consumer
+	var workers []*prompt2.Consumer
 
 	tracePropagator := &tracing.PropagationConfig{
 		AppID:     cfg.App.ID,
@@ -62,7 +69,7 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*stream.Consumer, func(
 	}
 
 	for i := 1; i <= cfg.App.NumberOfWorkers; i++ {
-		consumer, err := stream.NewConsumer(i, l, redisClient, sendPromptUsecase, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator)
+		consumer, err := prompt2.NewConsumer(i, l, redisClient, sendPromptUsecase, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator, *backoffManager)
 		if err != nil {
 			l.Error("Failed to initiate consumer.", "error", err)
 			os.Exit(1)
@@ -73,7 +80,7 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*stream.Consumer, func(
 	return workers, closer
 }
 
-func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdown func(context.Context) error) {
+func StartWorkers(logger *slog.Logger, workers []*prompt2.Consumer, tracerShutdown func(context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -91,7 +98,7 @@ func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdow
 	for _, worker := range workers {
 		wg.Add(1)
 
-		go func(w *stream.Consumer) {
+		go func(w *prompt2.Consumer) {
 			defer wg.Done()
 
 			if err := w.Consume(ctx); err != nil {

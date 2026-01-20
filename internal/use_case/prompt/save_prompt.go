@@ -52,6 +52,13 @@ func NewSavePromptUsecase(l logger.Logger, repository Repository, tx Transactor,
 func (s *SavePromptUsecase) PostPrompt(ctx context.Context, prompt model.Prompt) error {
 	prompt.Status = model.Accepted
 
+	payload := TaskPayload{
+		ID:      prompt.ID,
+		UserID:  prompt.UserID,
+		ModelID: prompt.ModelID,
+		Text:    prompt.Text,
+	}
+
 	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		err := s.repo.InsertPrompt(ctx, prompt)
 		if err != nil {
@@ -59,7 +66,7 @@ func (s *SavePromptUsecase) PostPrompt(ctx context.Context, prompt model.Prompt)
 			return err
 		}
 
-		err = s.outbox.CreateEvent(ctx, outbox.FromPromptDomain(prompt, "PostPrompt"))
+		err = s.outbox.CreateEvent(ctx, payload.ToEvent("PostPrompt"))
 		if err != nil {
 			s.logger.ErrorContext(ctx, "saving event failed", "error", err)
 			return err

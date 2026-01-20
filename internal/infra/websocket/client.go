@@ -7,9 +7,7 @@ import (
 )
 
 const (
-	// Час на запис повідомлення
-	writeWait = 10 * time.Second
-	// Період пінгу (має бути меншим за pongWait)
+	writeWait  = 30 * time.Second
 	pingPeriod = 30 * time.Second
 )
 

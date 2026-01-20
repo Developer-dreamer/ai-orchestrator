@@ -111,7 +111,13 @@ func SetupHttpServer(cfg *api.Config, l *slog.Logger) (*http.Server, *manager.Re
 		AppID:     cfg.App.ID,
 		ProcessID: "save_response",
 	}
-	consumer, err := stream.NewConsumer(0, l, redisClient, saveResponse, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator)
+	backoffManager, err := manager.NewBackoff(l, &cfg.App.Backoff)
+	if err != nil {
+		l.Error("Failed to initiate backoffManager.", "error", err)
+		os.Exit(1)
+	}
+
+	consumer, err := stream.NewConsumer(0, l, redisClient, saveResponse, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator, *backoffManager)
 	if err != nil {
 		l.Error("Failed to initiate consumer.", "error", err)
 		os.Exit(1)

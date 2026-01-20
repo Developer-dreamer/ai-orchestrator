@@ -18,4 +18,5 @@ type Prompt struct {
 	Text     string
 	Response string
 	Status   Status
+	Error    string
 }

@@ -9,6 +9,7 @@ app:
     max: "60s"
     factor: 2.0
     poll_interval: "50ms"
+    max_retries: 5
 
 postgres:
   host: postgres

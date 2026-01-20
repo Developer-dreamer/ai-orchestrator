@@ -35,6 +35,7 @@ type BackoffConfig struct {
 	Max          time.Duration `yaml:"max"`
 	Factor       float64       `yaml:"factor"`
 	PollInterval time.Duration `yaml:"poll_interval"`
+	MaxRetries   int           `yaml:"max_retries"`
 }
 
 type OtelConfig struct {

@@ -39,27 +39,38 @@ func NewSaveResponse(l logger.Logger, socket SocketProvider, repo Repository) (*
 }
 
 func (sr *SaveResponse) Use(ctx context.Context, entity string) error {
-	userPrompt := &model.Prompt{}
-	err := json.Unmarshal([]byte(entity), userPrompt)
+	result := &ResultPayload{}
+	err := json.Unmarshal([]byte(entity), result)
 	if err != nil {
 		sr.logger.ErrorContext(ctx, "failed to decode incoming entity", "error", err)
 		return err
 	}
 
-	userPrompt.Status = model.Completed
+	domainPrompt, err := sr.repo.GetPromptByID(ctx, result.ID)
+	if err != nil {
+		sr.logger.ErrorContext(ctx, "failed to get prompt by id", "error", err)
+		return err
+	}
 
-	err = sr.repo.UpdatePrompt(ctx, *userPrompt)
+	domainPrompt.Response = result.Response
+	if result.Error != "" {
+		domainPrompt.Status = model.Failed
+		domainPrompt.Error = result.Error
+	}
+
+	err = sr.repo.UpdatePrompt(ctx, *domainPrompt)
 	if err != nil {
 		sr.logger.WarnContext(ctx, "failed to save prompt", "error", err)
 		return err
 	}
 
-	userPromptJson, err := json.Marshal(userPrompt)
+	wsResult := DomainToWebsocket(domainPrompt)
+	wsJson, err := json.Marshal(wsResult)
 	if err != nil {
 		sr.logger.ErrorContext(ctx, "failed to marshal user prompt", "error", err)
 		return err
 	}
-	err = sr.socket.SendToClient(ctx, userPrompt.UserID.String(), userPromptJson)
+	err = sr.socket.SendToClient(ctx, domainPrompt.UserID.String(), wsJson)
 	if err != nil {
 		sr.logger.WarnContext(ctx, "failed to save prompt", "error", err)
 		return err

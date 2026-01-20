@@ -3,7 +3,6 @@ package prompt
 import (
 	"ai-orchestrator/internal/common/logger"
 	"ai-orchestrator/internal/domain/gateway"
-	"ai-orchestrator/internal/domain/model"
 	"context"
 	"encoding/json"
 )
@@ -36,7 +35,7 @@ func NewSendPrompUsecase(l logger.Logger, provider gateway.AIProvider, producer 
 func (uc *SendPromptUsecase) Use(ctx context.Context, entity string) error {
 	uc.logger.InfoContext(ctx, "Processing message")
 
-	userPrompt := &model.Prompt{}
+	userPrompt := &TaskPayload{}
 	err := json.Unmarshal([]byte(entity), userPrompt)
 	if err != nil {
 		uc.logger.WarnContext(ctx, "failed to decode incoming entity", "error", err)
@@ -44,14 +43,17 @@ func (uc *SendPromptUsecase) Use(ctx context.Context, entity string) error {
 	}
 
 	res, err := uc.aiProvider.Generate(ctx, userPrompt.ModelID, userPrompt.Text)
-	if err != nil {
-		return err
-	}
 
 	uc.logger.InfoContext(ctx, "Received the result", "response", res)
-	userPrompt.Response = res
+	resultPayload := &ResultPayload{
+		ID:       userPrompt.ID,
+		Response: res,
+	}
+	if err != nil {
+		resultPayload.Error = err.Error()
+	}
 
-	resultJson, err := json.Marshal(userPrompt)
+	resultJson, err := json.Marshal(resultPayload)
 	if err != nil {
 		uc.logger.WarnContext(ctx, "failed to marshal result", "error", err)
 		return err
