@@ -42,7 +42,7 @@ func (sr *SaveResponse) Use(ctx context.Context, entity string) error {
 	userPrompt := &model.Prompt{}
 	err := json.Unmarshal([]byte(entity), userPrompt)
 	if err != nil {
-		sr.logger.WarnContext(ctx, "failed to decode incoming entity", "error", err)
+		sr.logger.ErrorContext(ctx, "failed to decode incoming entity", "error", err)
 		return err
 	}
 
@@ -54,7 +54,12 @@ func (sr *SaveResponse) Use(ctx context.Context, entity string) error {
 		return err
 	}
 
-	err = sr.socket.SendToClient(ctx, userPrompt.UserID.String(), []byte(entity))
+	userPromptJson, err := json.Marshal(userPrompt)
+	if err != nil {
+		sr.logger.ErrorContext(ctx, "failed to marshal user prompt", "error", err)
+		return err
+	}
+	err = sr.socket.SendToClient(ctx, userPrompt.UserID.String(), userPromptJson)
 	if err != nil {
 		sr.logger.WarnContext(ctx, "failed to save prompt", "error", err)
 		return err

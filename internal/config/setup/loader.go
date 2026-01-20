@@ -7,10 +7,10 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-func Load[T api.Config | worker.Config]() (*T, error) {
+func Load[T api.Config | worker.Config](path string) (*T, error) {
 	var cfg T
 
-	if err := cleanenv.ReadConfig("config.yml", &cfg); err != nil {
+	if err := cleanenv.ReadConfig(path, &cfg); err != nil {
 		if err := cleanenv.ReadEnv(&cfg); err != nil {
 			return nil, fmt.Errorf("config error: %w", err)
 		}

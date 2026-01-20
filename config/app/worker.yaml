@@ -3,12 +3,30 @@ app:
   env: "production"
   number_of_workers: 5
 
+  backoff:
+    min: "1s"
+    max: "60s"
+    factor: 2.0
+    poll_interval: "50ms"
+
 redis:
   uri: "redis:6379"
-  pub_stream_id: "results"
-  sub_stream_id: "tasks"
 
-  stream:
+  sub_stream:
+    id: "tasks"
+
+    max_backlog: 1000
+    use_del_approx: true
+    read_count: 1
+    block_time: "5s"
+
+    group:
+      id: "ai_tasks_group"
+      consumer_primarily_id: "worker"
+
+  pub_stream:
+    id: "results"
+
     max_backlog: 1000
     use_del_approx: true
     read_count: 1

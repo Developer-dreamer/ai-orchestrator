@@ -9,7 +9,8 @@ import (
 )
 
 func main() {
-	cfg, err := setup.Load[api.Config]()
+	configPath := "/app/config/app/api.yaml"
+	cfg, err := setup.Load[api.Config](configPath)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}

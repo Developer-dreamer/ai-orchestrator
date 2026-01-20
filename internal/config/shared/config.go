@@ -11,7 +11,7 @@ type RedisConfig struct {
 }
 
 type StreamConfig struct {
-	ID string `yaml:"stream_id"`
+	ID string `yaml:"id"`
 
 	MaxBacklog   int64         `yaml:"max_backlog"`
 	UseDelApprox bool          `yaml:"use_del_approx"`
@@ -22,7 +22,7 @@ type StreamConfig struct {
 }
 
 type GroupConfig struct {
-	ID                  string `yaml:"group_id"`
+	ID                  string `yaml:"id"`
 	ConsumerPrimarilyID string `yaml:"consumer_primarily_id"`
 }
 
