@@ -1,52 +1,86 @@
 package app
 
 import (
-	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/env"
-	"ai-orchestrator/internal/transport/stream"
+	"ai-orchestrator/internal/config/connector"
+	"ai-orchestrator/internal/config/setup"
+	"ai-orchestrator/internal/config/worker"
+	"ai-orchestrator/internal/infra/ai/gemini"
+	"ai-orchestrator/internal/infra/broker"
+	"ai-orchestrator/internal/infra/manager"
+	"ai-orchestrator/internal/infra/telemetry/tracing"
+	prompt2 "ai-orchestrator/internal/transport/stream"
+	"ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
-	"fmt"
+	"google.golang.org/genai"
 	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
-func SetupWorkers(cfg *env.WorkerConfig, logger *slog.Logger) ([]*stream.Consumer, func(context.Context) error) {
-	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
+func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func(context.Context) error) {
+	redisClient, err := connector.ConnectToRedis(cfg.Redis.URI)
 	if err != nil {
-		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
+		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	closer, err := config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	closer, err := setup.InitTracer(cfg.App.ID, cfg.OTEL.URI)
 	if err != nil {
-		logger.Error("Failed to initiate tracer.", "error", err)
+		l.Error("Failed to initiate tracer.", "error", err)
+		os.Exit(1)
+	}
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		l.Error("Failed to initiate client.", "error", err)
 		os.Exit(1)
 	}
 
-	streamOptions := &config.Stream{
-		MaxBacklog:   1000,
-		UseDelApprox: true,
-		ReadCount:    1,
-		BlockTime:    5 * time.Second,
+	producer, err := broker.NewProducer(l, redisClient, &cfg.Redis.PubStream)
+	if err != nil {
+		l.Error("Failed to initiate producer.", "error", err)
+		os.Exit(1)
 	}
 
-	var workers []*stream.Consumer
+	backoffManager, err := manager.NewBackoff(l, &cfg.App.Backoff)
+	if err != nil {
+		l.Error("Failed to initiate backoffManager.", "error", err)
+		os.Exit(1)
+	}
 
-	for i := 0; i < cfg.GetNumberOfWorkers(); i++ {
-		workerName := fmt.Sprintf("worker-%d", i)
+	aiProvider, err := gemini.NewClient(l, client, *backoffManager)
+	if err != nil {
+		l.Error("Failed to initiate ai provider.", "error", err)
+		os.Exit(1)
+	}
+	sendPromptUsecase, err := prompt.NewSendPromptUsecase(l, aiProvider, producer)
+	if err != nil {
+		l.Error("Failed to initiate sendPrompUsecase.", "error", err)
+		os.Exit(1)
+	}
 
-		w := stream.NewConsumer(logger, redisClient, streamOptions, cfg.RedisStreamID, "ai_tasks_group", workerName)
-		workers = append(workers, w)
+	var workers []*prompt2.Consumer
+
+	tracePropagator := &tracing.PropagationConfig{
+		AppID:     cfg.App.ID,
+		ProcessID: "send_to_ai",
+	}
+
+	for i := 1; i <= cfg.App.NumberOfWorkers; i++ {
+		consumer, err := prompt2.NewConsumer(i, l, redisClient, sendPromptUsecase, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator, *backoffManager)
+		if err != nil {
+			l.Error("Failed to initiate consumer.", "error", err)
+			os.Exit(1)
+		}
+		workers = append(workers, consumer)
 	}
 
 	return workers, closer
 }
 
-func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdown func(context.Context) error) {
+func StartWorkers(logger *slog.Logger, workers []*prompt2.Consumer, tracerShutdown func(context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -64,7 +98,7 @@ func StartWorkers(logger *slog.Logger, workers []*stream.Consumer, tracerShutdow
 	for _, worker := range workers {
 		wg.Add(1)
 
-		go func(w *stream.Consumer) {
+		go func(w *prompt2.Consumer) {
 			defer wg.Done()
 
 			if err := w.Consume(ctx); err != nil {

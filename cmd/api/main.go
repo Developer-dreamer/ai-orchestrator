@@ -2,19 +2,20 @@ package main
 
 import (
 	"ai-orchestrator/internal/app"
-	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/env"
+	"ai-orchestrator/internal/config/api"
+	"ai-orchestrator/internal/config/setup"
 	"log"
 	"log/slog"
 )
 
 func main() {
-	cfg, err := env.LoadAPIConfig()
+	configPath := setup.LoadCfgFilesDir()
+	cfg, err := setup.Load[api.Config](configPath)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	logger := config.NewLogger(slog.LevelDebug)
+	logger := setup.NewLogger(slog.LevelDebug)
 
-	server, producer, tracerShutdown := app.SetupHttpServer(cfg, logger)
-	app.GracefulShutdown(server, producer, logger, tracerShutdown)
+	server, producer, consumer, tracerShutdown := app.SetupHttpServer(cfg, logger)
+	app.GracefulShutdown(server, producer, consumer, logger, tracerShutdown)
 }

@@ -1,17 +1,17 @@
 package middleware
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 )
 
 type RecoveryManager struct {
-	logger common.Logger
+	logger logger.Logger
 }
 
-func NewRecoveryManager(logger common.Logger) *RecoveryManager {
+func NewRecoveryManager(logger logger.Logger) *RecoveryManager {
 	return &RecoveryManager{
 		logger: logger,
 	}

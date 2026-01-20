@@ -1,7 +1,6 @@
 package outbox
 
 import (
-	"ai-orchestrator/internal/domain/model"
 	"encoding/json"
 	"time"
 
@@ -36,18 +35,4 @@ type Event struct {
 
 	CreatedAt   time.Time  `db:"created_at"`
 	ProcessedAt *time.Time `db:"processed_at"`
-}
-
-func FromPromptDomain(dp model.Prompt, eventType string) Event {
-	data, _ := json.Marshal(dp)
-
-	return Event{
-		ID:            uuid.New(),
-		AggregateType: "prompt",
-		AggregateID:   dp.ID,
-		EventType:     eventType,
-		Payload:       data,
-		Status:        Pending,
-		RetryCount:    0,
-	}
 }

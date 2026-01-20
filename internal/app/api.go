@@ -1,21 +1,26 @@
 package app
 
 import (
-	"ai-orchestrator/internal/common"
-	"ai-orchestrator/internal/config"
-	"ai-orchestrator/internal/config/env"
+	"ai-orchestrator/internal/common/logger"
+	"ai-orchestrator/internal/config/api"
+	"ai-orchestrator/internal/config/connector"
+	"ai-orchestrator/internal/config/setup"
 	"ai-orchestrator/internal/infra/broker"
 	"ai-orchestrator/internal/infra/manager"
 	"ai-orchestrator/internal/infra/persistence"
-	outbox2 "ai-orchestrator/internal/infra/persistence/repository/outbox"
+	outboxRepo "ai-orchestrator/internal/infra/persistence/repository/outbox"
 	promptRepo "ai-orchestrator/internal/infra/persistence/repository/prompt"
+	"ai-orchestrator/internal/infra/telemetry/tracing"
+	"ai-orchestrator/internal/infra/websocket"
 	promptHandler "ai-orchestrator/internal/transport/http/handler/prompt"
 	"ai-orchestrator/internal/transport/http/helper"
 	"ai-orchestrator/internal/transport/middleware"
+	"ai-orchestrator/internal/transport/stream"
 	savePromptUsecase "ai-orchestrator/internal/use_case/prompt"
 	"context"
 	"errors"
 	"github.com/gorilla/mux"
+	wslib "github.com/gorilla/websocket"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,65 +29,114 @@ import (
 	"time"
 )
 
-func SetupHttpServer(cfg *env.APIConfig, logger *slog.Logger) (*http.Server, *manager.Relay, func(context.Context) error) {
-	redisClient, err := config.ConnectToRedis(cfg.RedisUri)
+func SetupHttpServer(cfg *api.Config, l *slog.Logger) (*http.Server, *manager.Relay, *stream.Consumer, func(context.Context) error) {
+	redisClient, err := connector.ConnectToRedis(cfg.Redis.URI)
 	if err != nil {
-		logger.Error("Failed to initiate redis. Server shutdown.", "error", err)
+		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	closer, err := config.InitTracer(cfg.AppID, cfg.JaegerUri)
+	closer, err := setup.InitTracer(cfg.App.ID, cfg.OTEL.URI)
 	if err != nil {
-		logger.Error("Failed to initiate tracer.", "error", err)
+		l.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
-	postgresClient, err := config.ConnectToPostgres(cfg.PostgresUri)
+	postgresClient, err := connector.ConnectToPostgres(cfg.Postgres)
 	if err != nil {
-		logger.Error("Failed to initiate postgres. Server shutdown.", "error", err)
+		l.Error("Failed to initiate postgres. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	if err = config.RunMigrations(postgresClient, cfg.MigrationsDir); err != nil {
-		logger.Error("error while running migrations", "error", err)
+	if err = connector.RunMigrations(postgresClient, cfg.App.MigrationsDir); err != nil {
+		l.Error("error while running migrations", "error", err)
 		os.Exit(1)
 	}
 
-	streamOptions := &config.Stream{
-		MaxBacklog:   1000,
-		UseDelApprox: true,
-		ReadCount:    1,
-		BlockTime:    5 * time.Second,
+	transactor, err := persistence.NewTransactor(l, postgresClient)
+	if err != nil {
+		l.Error("Failed to initiate transactor.", "error", err)
+		os.Exit(1)
+	}
+	outbox, err := outboxRepo.NewRepository(l, postgresClient)
+	if err != nil {
+		l.Error("Failed to initiate outbox.", "error", err)
+		os.Exit(1)
 	}
 
-	backoffOptions := &config.Backoff{
-		Min:          1 * time.Second,
-		Max:          60 * time.Second,
-		Factor:       2,
-		PollInterval: 50 * time.Millisecond,
+	producer, err := broker.NewProducer(l, redisClient, &cfg.Redis.PubStream)
+	if err != nil {
+		l.Error("Failed to initiate producer.", "error", err)
+		os.Exit(1)
+	}
+	relay, err := manager.NewRelayService(l, transactor, outbox, producer, &cfg.App.Backoff)
+	if err != nil {
+		l.Error("Failed to initiate relay.", "error", err)
+		os.Exit(1)
 	}
 
-	transactor := persistence.NewTransactor(logger, postgresClient)
-	outbox := outbox2.NewRepository(logger, postgresClient)
+	upgrader := &wslib.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true }, // Restrict in production!
+	}
 
-	producer := broker.NewProducer(logger, redisClient, streamOptions, cfg)
-	relay := manager.NewRelayService(logger, transactor, outbox, producer, backoffOptions)
+	hub := websocket.NewHub()
+	socket, err := websocket.NewManager(l, upgrader, hub)
+	if err != nil {
+		l.Error("Failed to initiate websocket.", "error", err)
+		os.Exit(1)
+	}
 
-	pr := promptRepo.NewRepository(logger, postgresClient)
+	pr, err := promptRepo.NewRepository(l, postgresClient)
+	if err != nil {
+		l.Error("Failed to initiate prompt repository.", "error", err)
+		os.Exit(1)
+	}
 
-	savePrompt := savePromptUsecase.NewSavePromptUsecase(logger, pr, transactor, outbox)
-	ph := promptHandler.NewHandler(logger, savePrompt)
+	savePrompt, err := savePromptUsecase.NewSavePromptUsecase(l, pr, transactor, outbox)
+	if err != nil {
+		l.Error("Failed to initiate save prompt usecase.", "error", err)
+		os.Exit(1)
+	}
 
-	r := registerRoutes(ph, logger)
-	logger.Info("Starting server")
+	ph, err := promptHandler.NewHandler(l, savePrompt)
+	if err != nil {
+		l.Error("Failed to initiate prompt handler.", "error", err)
+		os.Exit(1)
+	}
+
+	saveResponse, err := savePromptUsecase.NewSaveResponse(l, socket, pr)
+	if err != nil {
+		l.Error("Failed to initiate save response.", "error", err)
+		os.Exit(1)
+	}
+
+	tracePropagator := &tracing.PropagationConfig{
+		AppID:     cfg.App.ID,
+		ProcessID: "save_response",
+	}
+	backoffManager, err := manager.NewBackoff(l, &cfg.App.Backoff)
+	if err != nil {
+		l.Error("Failed to initiate backoffManager.", "error", err)
+		os.Exit(1)
+	}
+
+	consumer, err := stream.NewConsumer(0, l, redisClient, saveResponse, &cfg.Redis.SubStream, &cfg.App.Backoff, tracePropagator, *backoffManager)
+	if err != nil {
+		l.Error("Failed to initiate consumer.", "error", err)
+		os.Exit(1)
+	}
+
+	r := registerRoutes(ph, socket, l)
+
+	l.Info("Starting server")
 
 	return &http.Server{
-		Addr:         ":" + cfg.AppPort,
+		Addr:         ":" + cfg.App.Port,
 		Handler:      r,
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-	}, relay, closer
+	}, relay, consumer, closer
 }
 
-func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.Router {
+func registerRoutes(handler *promptHandler.Handler, socketManager *websocket.Manager, logger logger.Logger) *mux.Router {
 	r := mux.NewRouter()
 
 	recoveryManager := middleware.NewRecoveryManager(logger)
@@ -92,6 +146,8 @@ func registerRoutes(handler *promptHandler.Handler, logger common.Logger) *mux.R
 	r.HandleFunc("/ask", handler.PostPrompt).Methods(http.MethodPost)
 	r.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
 
+	r.HandleFunc("/ws", socketManager.ServeWS).Methods(http.MethodGet)
+
 	return r
 }
 
@@ -99,7 +155,7 @@ func healthCheck(rw http.ResponseWriter, _ *http.Request) {
 	helper.WriteJSONResponse(rw, http.StatusOK, nil)
 }
 
-func GracefulShutdown(server *http.Server, relay *manager.Relay, logger *slog.Logger, tracerShutdown func(context.Context) error) {
+func GracefulShutdown(server *http.Server, relay *manager.Relay, consumer *stream.Consumer, logger *slog.Logger, tracerShutdown func(context.Context) error) {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 
@@ -119,6 +175,15 @@ func GracefulShutdown(server *http.Server, relay *manager.Relay, logger *slog.Lo
 		if err := relay.Start(appCtx); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Error("error occurred in relay", "error", err)
+			}
+		}
+	}()
+
+	go func() {
+		logger.Info("Starting consumer")
+		if err := consumer.Consume(appCtx); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				logger.Error("error occurred in consumer", "error", err)
 			}
 		}
 	}()

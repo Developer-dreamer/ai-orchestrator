@@ -1,8 +1,9 @@
 package outbox
 
 import (
-	"ai-orchestrator/internal/common"
+	"ai-orchestrator/internal/common/logger"
 	"context"
+	"errors"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
@@ -10,15 +11,21 @@ import (
 )
 
 type Repository struct {
-	logger common.Logger
+	logger logger.Logger
 	db     *sqlx.DB
 }
 
-func NewRepository(logger common.Logger, db *sqlx.DB) *Repository {
-	return &Repository{
-		logger: logger,
-		db:     db,
+func NewRepository(l logger.Logger, db *sqlx.DB) (*Repository, error) {
+	if l == nil {
+		return nil, logger.ErrNilLogger
 	}
+	if db == nil {
+		return nil, errors.New("db is nil")
+	}
+	return &Repository{
+		logger: l,
+		db:     db,
+	}, nil
 }
 
 func (r *Repository) GetAllPendingEvents(ctx context.Context, count int) ([]Event, error) {

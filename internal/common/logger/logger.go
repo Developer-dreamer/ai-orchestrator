@@ -1,6 +1,11 @@
-package common
+package logger
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrNilLogger = errors.New("logger is nil")
 
 type Logger interface {
 	Info(msg string, args ...any)

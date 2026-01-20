@@ -1,0 +1,29 @@
+package setup
+
+import (
+	"ai-orchestrator/internal/config/api"
+	"ai-orchestrator/internal/config/worker"
+	"fmt"
+	"github.com/ilyakaznacheev/cleanenv"
+	"os"
+)
+
+func LoadCfgFilesDir() string {
+	str := os.Getenv("YAML_CFG_DIR")
+	if str == "" {
+		return "../../config/app/api.yaml"
+	}
+	return str
+}
+
+func Load[T api.Config | worker.Config](path string) (*T, error) {
+	var cfg T
+
+	if err := cleanenv.ReadConfig(path, &cfg); err != nil {
+		if err := cleanenv.ReadEnv(&cfg); err != nil {
+			return nil, fmt.Errorf("config error: %w", err)
+		}
+	}
+
+	return &cfg, nil
+}

@@ -6,15 +6,17 @@ import (
 )
 
 type CreateRequest struct {
-	UserID uuid.UUID `json:"user_id"`
-	Prompt string    `json:"prompt"`
+	UserID  uuid.UUID `json:"user_id"`
+	ModelID string    `json:"model_id"`
+	Prompt  string    `json:"prompt"`
 }
 
 func (r *CreateRequest) ToDomain() model.Prompt {
 	return model.Prompt{
-		ID:     uuid.New(),
-		UserID: r.UserID,
-		Text:   r.Prompt,
+		ID:      uuid.New(),
+		UserID:  r.UserID,
+		ModelID: r.ModelID,
+		Text:    r.Prompt,
 	}
 }
 
