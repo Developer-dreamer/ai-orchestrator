@@ -3,7 +3,7 @@
 ## The app
 
 This app is a distributed AI orchestration system designed for asynchronous prompt processing, allowing users to run tasks or conduct long-term research. 
-The system is designed to be highly available, "bulletproof", and fast enough. 
+The system is designed to be highly available, fault-tolerant, and fast enough. 
 For this purpose, the design consists of several microservices, which communicate via Redis Streams. 
 This approach allows scaling application computing power horizontally, decreasing overall deployment cost. 
 Also, the app is designed to be highly observable. 
@@ -21,7 +21,7 @@ But the underlying architecture is designed to be stable and to face business ne
 Here is a simple explanation of how it works under the hood:
 1. The prompt is sent to the `POST /ask`
 2. Prompt validated and processed. If there are validation issues, the client receives a **400** response status. Otherwise - **202 Accepted**.
-3. The corresponding **Event** was created and, within a single transaction, saved into PostgreSQL along with **Prompt**.
+3. An **Event** is generated and, within a single transaction, saved into PostgreSQL along with **Prompt**.
 4. **Relay** background task, within the same microservice, reads from **outbox** table, and publishes the event into Redis Stream with ID "tasks".
 5. Then, Redis automatically handles delivery via so-called "Consumer groups" to one out of 5-10 workers (this number is configured inside the Worker microservice).
 6. The worker, from a Worker microservice, which is being run in a separate go-routine, reads the task delivered to him and starts processing.
@@ -35,7 +35,7 @@ Here is a simple explanation of how it works under the hood:
 
 Redis was chosen because it is fast and easily configurable. There is no need to overengineer an already complicated enough system.
 The average task that may be processed via this service may take from 2 to 10-15 seconds to complete. So, competing with RabbitMQ
-for an additional millisecond won't be a smart enough idea. And since Redis already has such mechanisms as Pub/Sub and Streams, this is a nice opportunity to use them as a message broker.
+for an additional millisecond won't be a pragmatic decision. And since Redis already has such mechanisms as Pub/Sub and Streams, this is a nice opportunity to use them as a message broker.
 Why Streams and not Pub/Sub? The answer is simple: Streams are persistent and reliable (acknowledgment mechanisms), while Pub/Sub stores data in memory
 and follows the "fire and forget" principle.
 
@@ -75,6 +75,30 @@ To check whether everything is correct, check the logs of the container inside t
 The app should start with the appropriate message. 
 Make a `GET` request via **Postman** or any other tool you like to the `http://localhost:8080/health` endpoint. 
 If response **200**, everything is fine.
+
+## Use
+
+> For this section, I will use explanation on Postman example.
+
+To test this all out, go to Postman and create a new tab with WebSocket connection. Enter the next url into the link blank:
+`http://localhost:8080/ws?userID=2aa7637a-4ba0-44c8-adad-9957512ae6e0`. Then click **Connect**.
+
+Then create a new tab with **POST** request. Then use the next values to fill the blanks:
+```
+Address: htt://localhost:8080/ask
+
+BODY:
+{
+    "user_id" : "2aa7637a-4ba0-44c8-adad-9957512ae6e0",
+    "model_id" : "gemini-3-flash-preview",
+    "prompt": "Hello Gemini"
+}
+```
+
+> [!IMPORTANT]
+> Do not change the user_id provided in this request, since this is an ID you've connected to websocket with.
+
+Click *Send* and switch to the WebSocket tab. After a certain amount of time (2-10 seconds) you will see the response.
 
 ## Observability & Distributed Tracing
 
