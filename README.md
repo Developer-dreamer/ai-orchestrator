@@ -14,7 +14,7 @@ The app is already set up for Gemini's free tier. Enabling it is described below
 Here is a visualization of the architectural design of the application:
 ![](doc/diagram/architecture.png)
 > [!NOTE]
-> You can see the full design [here](https://excalidraw.com/#json=mgo5-7O6Juynd4xIOb3tq,GLRfdZp3B8TTXyg0suKXPg)
+> You can see the full design [here](https://excalidraw.com/#json=DU78D5VdM8CY3sKzBp7Wg,hhjbzaImUoxO5ouQt_1bXA)
 
 The idea might seem simple: Get the user prompt -> Send it to the AI model -> Return the result to the user.
 But the underlying architecture is designed to be stable and to face business needs. First and foremost, using observability.
