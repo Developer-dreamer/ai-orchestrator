@@ -4,7 +4,7 @@ resource "google_project_service" "redis_api" {
 }
 
 resource "google_redis_instance" "memstore" {
-  name                    = "${var.service_name}-cache"
+  name                    = "redis"
   region                  = var.region
   auth_enabled            = true
   memory_size_gb          = 1

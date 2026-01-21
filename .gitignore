@@ -33,3 +33,4 @@ go.work.sum
 
 # Terraform files
 /deployment/terraform/prod/.terraform/
+/deployment/terraform/prod/.terraform.lock.hcl

@@ -14,7 +14,12 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "service_account_email" {
+variable "api_service_account_email" {
+  description = "The email of the service account"
+  type        = string
+}
+
+variable "worker_service_account_email" {
   description = "The email of the service account"
   type        = string
 }
@@ -31,5 +36,11 @@ variable "memstore_name" {
 
 variable "gemini_api_key" {
   description = "The key used to make API requests to Gemini models"
-  type = string
+  type        = string
 }
+
+variable "redis_ca_cert" {
+  description = "Content of the Redis CA Certificate"
+  type        = string
+}
+

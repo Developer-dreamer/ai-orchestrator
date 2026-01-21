@@ -30,7 +30,7 @@ variable "app_version" {
 
 variable "environment" {
   description = "The environment the app is being run inside"
-  type = string
+  type        = string
 }
 
 variable "app_config_secret_id" {
@@ -41,14 +41,14 @@ variable "app_config_secret_id" {
 
 # ===== POSTGRES CONFIGURATION =====
 
-variable "db_user_secret_id" {
+variable "db_user" {
   description = "The user of PostgreSQL inside CloudSQL container"
-  type = string
+  type        = string
 }
 
-variable "db_name_secret_id" {
+variable "db_name" {
   description = "The name of PostgreSQL database inside CloudSQL container"
-  type = string
+  type        = string
 }
 
 variable "db_connection_name" {
@@ -66,7 +66,7 @@ variable "db_pass_secret_id" {
 
 variable "redis_host" {
   description = "The host of Redis instance"
-  type = string
+  type        = string
 }
 
 variable "redis_secret_id" {

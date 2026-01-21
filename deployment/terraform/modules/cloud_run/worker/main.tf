@@ -15,16 +15,16 @@ resource "google_project_service" "resource_manager_api" {
 resource "google_secret_manager_secret_version" "app_config" {
   secret = var.app_config_secret_id
 
-  secret_data = templatefile("${path.module}/../../../prod/worker.yaml.tftpl", {
-    service_name            = var.service_name
-    environment             = var.environment
-    redis_host              = var.redis_host
-    number_of_workers       = var.number_of_workers
-    api_redis_pub_stream_id = "results"
-    api_redis_sub_stream_id = "tasks"
-    redis_consumer_group    = "ai_tasks_group"
-    worker_id               = "worker"
-    otel_collector_uri      = "otel-collector:4318"
+  secret_data = templatefile("${path.module}/../../../prod/config/worker.yaml.tftpl", {
+    service_name         = var.service_name
+    environment          = var.environment
+    redis_host           = var.redis_host
+    number_of_workers    = var.number_of_workers
+    redis_pub_stream_id  = "results"
+    redis_sub_stream_id  = "tasks"
+    redis_consumer_group = "ai_tasks_group"
+    worker_id            = "worker"
+    otel_collector_uri   = "otel-collector:4318"
   })
 }
 
@@ -76,10 +76,6 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
-      }
-      volume_mounts {
         name       = "redis-ca"
         mount_path = "/certs"
       }
@@ -94,8 +90,8 @@ resource "google_cloud_run_v2_service" "backend" {
       secret {
         secret = var.app_config_secret_id
         items {
-          key  = "latest"
-          path = "config.yaml"
+          version = "latest"
+          path    = "config.yaml"
         }
       }
     }
@@ -111,60 +107,5 @@ resource "google_cloud_run_v2_service" "backend" {
 
   client = "terraform"
 
-  depends_on = [google_project_service.cloud_run_api]
-}
-
-resource "google_project_iam_member" "terraform_run_admin" {
-  project = var.project_id
-  role    = "roles/run.admin"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  member   = "allUsers"
-  name     = google_cloud_run_v2_service.backend.name
-  role     = "roles/run.invoker"
-  location = google_cloud_run_v2_service.backend.location
-}
-
-resource "google_project_iam_member" "cloudsql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "service_networking_admin" {
-  project = var.project_id
-  role    = "roles/servicenetworking.networksAdmin"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "resourcemanager_admin" {
-  member  = "serviceAccount:${var.service_account_email}"
-  project = var.project_id
-  role    = "roles/resourcemanager.projectIamAdmin"
-}
-
-resource "google_project_iam_member" "serviceusage_admin" {
-  member  = "serviceAccount:${var.service_account_email}"
-  project = var.project_id
-  role    = "roles/serviceusage.serviceUsageAdmin"
-}
-
-resource "google_project_iam_member" "terraform_compute_viewer" {
-  project = var.project_id
-  role    = "roles/compute.admin"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "redis_viewer" {
-  project = var.project_id
-  role    = "roles/redis.viewer"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "secrets_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${var.service_account_email}"
+  depends_on = [google_secret_manager_secret_version.app_config]
 }

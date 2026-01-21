@@ -1,8 +1,3 @@
-variable "service_name" {
-  description = "The name of the service"
-  type        = string
-}
-
 variable "region" {
   description = "The region for the GCP resources"
   type        = string

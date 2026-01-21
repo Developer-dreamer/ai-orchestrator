@@ -9,5 +9,7 @@ output "db_private_ip" {
   value       = [
     for ip in google_sql_database_instance.default.ip_address :
     ip.ip_address if ip.type == "PRIVATE"
-  ][0]
+  ][
+  0
+  ]
 }

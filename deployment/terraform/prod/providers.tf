@@ -14,9 +14,17 @@ provider "google" {
   ]
 }
 
-data "google_service_account_access_token" "default" {
+data "google_service_account_access_token" "api" {
   provider               = google.impersonation
-  target_service_account = var.terraform_service_account
+  target_service_account = var.terraform_api_service_account
+  lifetime               = "900s"
+
+  scopes = ["cloud-platform"]
+}
+
+data "google_service_account_access_token" "worker" {
+  provider               = google.impersonation
+  target_service_account = var.terraform_worker_service_account
   lifetime               = "900s"
 
   scopes = ["cloud-platform"]

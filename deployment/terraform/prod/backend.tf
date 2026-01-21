@@ -1,5 +1,5 @@
 terraform {
   backend "gcs" {
-    bucket = "orchestrator-bucket"
+    bucket = "ai-orchestrator-bucket"
   }
 }

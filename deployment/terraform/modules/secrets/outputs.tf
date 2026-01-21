@@ -20,10 +20,10 @@ output "db_pass_secret_id" {
 
 output "api_config_id" {
   description = "The ID used to get yaml configuration file"
-  value = google_secret_manager_secret.api_config.secret_id
+  value       = google_secret_manager_secret.api_config.secret_id
 }
 
 output "gemini_api_key_secret_id" {
   description = "The key used to make API requests to Gemini models"
-  value = google_secret_manager_secret.gemini_api_key.secret_id
+  value       = google_secret_manager_secret.gemini_api_key.secret_id
 }

@@ -11,7 +11,7 @@ resource "google_project_service" "service_networking_api" {
 }
 
 resource "google_compute_network" "vpc" {
-  name                    = "${var.service_name}-vpc"
+  name                    = "main-vpc"
   auto_create_subnetworks = false
 }
 
@@ -24,26 +24,26 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "${var.service_name}-subnet"
+  name          = "main-vpc-subnet"
   ip_cidr_range = "10.10.10.0/24"
   region        = var.region
   network       = google_compute_network.vpc.id
 }
 
 resource "google_vpc_access_connector" "connector" {
-  name          = "${var.service_name}-connector-for-redis"
+  name          = "main-vpc-conn"
   region        = var.region
   network       = google_compute_network.vpc.name
   ip_cidr_range = "10.8.0.0/28"
 
   min_throughput = 200
-  max_throughput = 500
+  max_throughput = 300
 
   depends_on = [google_project_service.vpc_api]
 }
 
 resource "google_compute_global_address" "private_ip_range" {
-  name          = "${var.service_name}-private-ip-range"
+  name          = "main-vpc-private-ip-range"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16

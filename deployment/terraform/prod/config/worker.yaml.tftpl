@@ -14,7 +14,7 @@ redis:
   uri: "${redis_host}:6379"
 
   sub_stream:
-    id: "${worker_redis_sub_stream_id}"
+    id: "${redis_sub_stream_id}"
 
     max_backlog: 1000
     use_del_approx: true
@@ -26,7 +26,7 @@ redis:
       consumer_primarily_id: "${worker_id}"
 
   pub_stream:
-    id: "${api_redis_pub_stream_id}"
+    id: "${redis_pub_stream_id}"
 
     max_backlog: 1000
     use_del_approx: true

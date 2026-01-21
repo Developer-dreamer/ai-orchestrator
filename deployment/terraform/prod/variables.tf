@@ -3,10 +3,16 @@ variable "project_id" {
   type        = string
 }
 
-variable "service_name" {
+variable "api_service_name" {
   description = "The name of the service"
   type        = string
-  default     = "ai-orchestrator"
+  default     = "ai-orchestrator-api"
+}
+
+variable "worker_service_name" {
+  description = "The name of the service"
+  type        = string
+  default     = "ai-orchestrator-worker"
 }
 
 variable "region" {
@@ -15,10 +21,16 @@ variable "region" {
   default     = "us-central1"
 }
 
-variable "terraform_service_account" {
+variable "terraform_api_service_account" {
   description = "The service account used for Terraform operations"
   type        = string
   default     = "ai-orchestrator@poised-graph-484915-a3.iam.gserviceaccount.com"
+}
+
+variable "terraform_worker_service_account" {
+  description = "The service account used for Terraform operations"
+  type        = string
+  default     = "ai-orchestrator-worker@poised-graph-484915-a3.iam.gserviceaccount.com"
 }
 
 variable "environment" {
