@@ -8,21 +8,33 @@ resource "google_project_service" "cloud_run_api" {
 }
 
 resource "google_project_service" "resource_manager_api" {
-  service = "cloudresourcemanager.googleapis.com"
+  service            = "cloudresourcemanager.googleapis.com"
   disable_on_destroy = false
 }
 
-data "google_sql_database_instance" "default" {
-  name = var.db_private_ip
+resource "google_secret_manager_secret_version" "app_config" {
+  secret = var.app_config_secret_id
+
+  secret_data = templatefile("${path.module}/../../../prod/worker.yaml.tftpl", {
+    service_name            = var.service_name
+    environment             = var.environment
+    redis_host              = var.redis_host
+    number_of_workers       = var.number_of_workers
+    api_redis_pub_stream_id = "results"
+    api_redis_sub_stream_id = "tasks"
+    redis_consumer_group    = "ai_tasks_group"
+    worker_id               = "worker"
+    otel_collector_uri      = "otel-collector:4318"
+  })
 }
 
 resource "google_cloud_run_v2_service" "backend" {
   location = var.region
-  name     = "${var.service_name}-backend"
+  name     = "${var.service_name}-worker"
   ingress  = local.traffic_type
 
   labels = {
-    "app" = var.service_name
+    "app" = "${var.service_name}-worker"
   }
 
   scaling {
@@ -32,12 +44,6 @@ resource "google_cloud_run_v2_service" "backend" {
   deletion_protection = false
 
   template {
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [var.db_connection_name]
-      }
-    }
     volumes {
       name = "redis-ca"
       secret {
@@ -61,22 +67,13 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       env {
-        name  = "REDIS_URI"
-        value = var.memstore_connection_string
+        name  = "GEMINI_API_KEY"
+        value = data.google_secret_manager_secret_version.gemini_api_key.secret_data
       }
       env {
-        name  = "APP_ENVIRONMENT"
-        value = "Development"
+        name  = "YAML_CFG_PATH"
+        value = "/etc/secrets/config.yaml"
       }
-      env {
-        name  = "CACHE_TTL_MINUTES"
-        value = "5"
-      }
-      env {
-        name  = "CLOUD_PROJECT_ID"
-        value = var.project_id
-      }
-
 
       volume_mounts {
         name       = "cloudsql"
@@ -85,6 +82,21 @@ resource "google_cloud_run_v2_service" "backend" {
       volume_mounts {
         name       = "redis-ca"
         mount_path = "/certs"
+      }
+      volume_mounts {
+        mount_path = "config-vol"
+        name       = "/ect/secrets"
+      }
+    }
+
+    volumes {
+      name = "config-vol"
+      secret {
+        secret = var.app_config_secret_id
+        items {
+          key  = "latest"
+          path = "config.yaml"
+        }
       }
     }
 
@@ -118,12 +130,6 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 resource "google_project_iam_member" "cloudsql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "firestore_access" {
-  project = var.project_id
-  role    = "roles/datastore.user"
   member  = "serviceAccount:${var.service_account_email}"
 }
 

@@ -21,6 +21,18 @@ variable "terraform_service_account" {
   default     = "ai-orchestrator@poised-graph-484915-a3.iam.gserviceaccount.com"
 }
 
+variable "environment" {
+  description = "The environment app is running in"
+  type        = string
+  default     = "development"
+}
+
+variable "number_of_workers" {
+  description = "The number of workers used to process AI requests"
+  type        = number
+  default     = 1
+}
+
 variable "db_name" {
   description = "The database name for CloudSQL PostgreSQL instance"
   type        = string
@@ -40,4 +52,10 @@ variable "db_password" {
 variable "app_version" {
   description = "Current version of deploy"
   type        = string
+}
+
+variable "gemini_api_key" {
+  description = "The key used to make API requests to Gemini models"
+  type        = string
+  sensitive   = true
 }

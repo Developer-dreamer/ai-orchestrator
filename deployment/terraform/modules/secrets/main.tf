@@ -3,6 +3,14 @@ resource "google_project_service" "secretmanager_api" {
   disable_on_destroy = false
 }
 
+resource "google_secret_manager_secret" "api_config" {
+  secret_id = "api_config"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.secretmanager_api]
+}
+
 resource "google_secret_manager_secret" "dbuser" {
   secret_id = "dbuser"
   replication {
@@ -79,6 +87,25 @@ resource "google_secret_manager_secret_version" "redis_ca_version" {
 
 resource "google_secret_manager_secret_iam_member" "secretaccess_compute_redis" {
   secret_id = google_secret_manager_secret.redis_ca.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.service_account_email}"
+}
+
+resource "google_secret_manager_secret" "gemini_api_key" {
+  secret_id = "gemini_api_key"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.secretmanager_api]
+}
+
+resource "google_secret_manager_secret_version" "gemini_api_key_data" {
+  secret      = google_secret_manager_secret.gemini_api_key.id
+  secret_data = var.gemini_api_key
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_gemini_api_key" {
+  secret_id = google_secret_manager_secret.gemini_api_key.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.service_account_email}"
 }

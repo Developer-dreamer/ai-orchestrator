@@ -1,6 +1,5 @@
 locals {
   traffic_type = "INGRESS_TRAFFIC_ALL"
-  postgres_uri = "postgres://${data.google_secret_manager_secret_version.db_user.secret_data}:${data.google_secret_manager_secret_version.db_pass.secret_data}@${data.google_sql_database_instance.default.ip_address[0].ip_address}:5432/${data.google_secret_manager_secret_version.db_name.secret_data}?sslmode=require"
 }
 
 resource "google_project_service" "cloud_run_api" {
@@ -9,21 +8,39 @@ resource "google_project_service" "cloud_run_api" {
 }
 
 resource "google_project_service" "resource_manager_api" {
-  service = "cloudresourcemanager.googleapis.com"
+  service            = "cloudresourcemanager.googleapis.com"
   disable_on_destroy = false
 }
 
-data "google_sql_database_instance" "default" {
-  name = var.db_private_ip
+# data "google_sql_database_instance" "default" {
+#   name = var.db_private_ip
+# }
+
+resource "google_secret_manager_secret_version" "app_config" {
+  secret = var.app_config_secret_id
+
+  secret_data = templatefile("${path.module}/../../../prod/api.yaml.tftpl", {
+    service_name            = var.service_name
+    environment             = var.environment
+    db_host                 = var.db_connection_name
+    db_user                 = data.google_secret_manager_secret_version.db_user.secret_data
+    db_name                 = data.google_secret_manager_secret_version.db_name.secret_data
+    redis_host              = var.redis_host
+    api_redis_pub_stream_id = "tasks"
+    api_redis_sub_stream_id = "results"
+    redis_consumer_group    = "ai_tasks_group"
+    worker_id               = "worker"
+    otel_collector_uri      = "otel-collector:4318"
+  })
 }
 
 resource "google_cloud_run_v2_service" "backend" {
   location = var.region
-  name     = "${var.service_name}-backend"
+  name     = "${var.service_name}-api"
   ingress  = local.traffic_type
 
   labels = {
-    "app" = var.service_name
+    "app" = "${var.service_name}-api"
   }
 
   scaling {
@@ -62,26 +79,13 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       env {
-        name  = "POSTGRES_URI"
-        value = local.postgres_uri
+        name  = "POSTGRES_PASSWORD"
+        value = data.google_secret_manager_secret_version.db_pass.secret_data
       }
       env {
-        name  = "REDIS_URI"
-        value = var.memstore_connection_string
+        name  = "YAML_CFG_PATH"
+        value = "/etc/secrets/config.yaml"
       }
-      env {
-        name  = "APP_ENVIRONMENT"
-        value = "Development"
-      }
-      env {
-        name  = "CACHE_TTL_MINUTES"
-        value = "5"
-      }
-      env {
-        name  = "CLOUD_PROJECT_ID"
-        value = var.project_id
-      }
-
 
       volume_mounts {
         name       = "cloudsql"
@@ -90,6 +94,21 @@ resource "google_cloud_run_v2_service" "backend" {
       volume_mounts {
         name       = "redis-ca"
         mount_path = "/certs"
+      }
+      volume_mounts {
+        mount_path = "config-vol"
+        name       = "/ect/secrets"
+      }
+    }
+
+    volumes {
+      name = "config-vol"
+      secret {
+        secret = var.app_config_secret_id
+        items {
+          key  = "latest"
+          path = "config.yaml"
+        }
       }
     }
 
@@ -123,12 +142,6 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 resource "google_project_iam_member" "cloudsql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${var.service_account_email}"
-}
-
-resource "google_project_iam_member" "firestore_access" {
-  project = var.project_id
-  role    = "roles/datastore.user"
   member  = "serviceAccount:${var.service_account_email}"
 }
 

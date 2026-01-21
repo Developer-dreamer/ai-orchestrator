@@ -30,5 +30,6 @@ type PostgresConfig struct {
 }
 
 func (pc PostgresConfig) GetConnectionString() string {
+	asdlfkj
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
 }

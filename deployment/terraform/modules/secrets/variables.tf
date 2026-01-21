@@ -28,3 +28,8 @@ variable "memstore_name" {
   description = "The name of the Redis"
   type        = string
 }
+
+variable "gemini_api_key" {
+  description = "The key used to make API requests to Gemini models"
+  type = string
+}
