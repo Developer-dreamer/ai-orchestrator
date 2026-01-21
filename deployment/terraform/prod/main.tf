@@ -94,7 +94,7 @@ module "worker" {
   region                = var.region
 
   environment          = var.environment
-  app_config_secret_id = module.secrets.api_config_id
+  app_config_secret_id = module.secrets.worker_config_id
   number_of_workers    = var.number_of_workers
   redis_host           = module.memory_store.memstore_connection_string
   redis_secret_id      = module.secrets.redis_secret_id
