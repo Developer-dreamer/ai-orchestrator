@@ -20,6 +20,9 @@ func ConnectToRedis(env string, redisUri string) (*redis.Client, error) {
 	switch env {
 	case "production":
 		client, err = createSecureRedisClient(redisUri)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		client = redis.NewClient(&redis.Options{
 			Addr: redisUri,
