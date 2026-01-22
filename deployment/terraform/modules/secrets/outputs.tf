@@ -14,7 +14,7 @@ output "db_name_secret_id" {
 }
 
 output "db_pass_secret_id" {
-  description = "The secret ID of the PostgreSQL used to extract database name for connection"
+  description = "The secret ID of the PostgreSQL used to extract database password for connection"
   value       = google_secret_manager_secret.dbpass.id
 }
 
