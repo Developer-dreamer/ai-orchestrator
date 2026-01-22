@@ -1,5 +1,5 @@
 output "vpc_network_id" {
-  description = "The id ow the internal network used for 'app -> redis' communication"
+  description = "The id of the internal network used for 'app -> redis' communication"
   value       = google_compute_network.vpc.id
 }
 
