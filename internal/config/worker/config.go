@@ -11,10 +11,10 @@ type Config struct {
 }
 
 type AppConfig struct {
-	ID              string `yaml:"id" env:"APP_ID" envDefault:"api"`
-	Port            string `yaml:"port" env:"APP_PORT" envDefault:"8080"`
-	Environment     string `yaml:"env" env:"APP_ENV" envDefault:"development"`
-	NumberOfWorkers int    `yaml:"number_of_workers" env:"NUMBER_OF_WORKERS" envDefault:"1"`
+	ID              string `yaml:"id" env:"APP_ID" env-default:"api"`
+	Port            string `yaml:"port" env:"APP_PORT" env-default:"8080"`
+	Environment     string `yaml:"env" env:"APP_ENV" env-default:"development"`
+	NumberOfWorkers int    `yaml:"number_of_workers" env:"NUMBER_OF_WORKERS" env-default:"1"`
 
 	Backoff shared.BackoffConfig `yaml:"backoff"`
 }
