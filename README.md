@@ -1,5 +1,12 @@
 # AI-orchestration system
 
+> [!NOTE]
+> Ongoing Development: **Infrastructure-as-Code**
+> I am currently working on automated cloud provisioning using Terraform and GCP. 
+> To maintain the stability of the main branch, this feature is being developed in a dedicated branch.
+> 
+> 🔗 Check progress here: [deployment/gcp-terraform](https://github.com/Developer-dreamer/ai-orchestrator/tree/deployment/gcp-terraform)
+
 ## The app
 
 This app is a distributed AI orchestration system designed for asynchronous prompt processing, allowing users to run tasks or conduct long-term research. 
