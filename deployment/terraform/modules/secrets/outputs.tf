@@ -25,7 +25,7 @@ output "api_config_id" {
 
 output "worker_config_id" {
   description = "The ID used to get yaml configuration file"
-  value       = google_secret_manager_secret.worker_config.secret_id
+  value       = google_secret_manager_secret.worker_config.id
 }
 
 output "gemini_api_key_secret_id" {
