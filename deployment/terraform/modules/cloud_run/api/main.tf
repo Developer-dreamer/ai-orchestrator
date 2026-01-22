@@ -22,7 +22,7 @@ resource "google_secret_manager_secret_version" "app_config" {
   secret_data = templatefile("${path.module}/../../../prod/config/api.yaml.tftpl", {
     service_name            = var.service_name
     environment             = var.environment
-    db_host                 = var.db_connection_name
+    db_host                 = "/cloudsql/${var.db_connection_name}"
     db_user                 = var.db_user
     db_name                 = var.db_name
     redis_host              = var.redis_host
@@ -69,7 +69,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.service_name}/app:${var.app_version}"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}/api:${var.app_version}"
 
       resources {
         limits = {
@@ -88,7 +88,7 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
       env {
-        name  = "YAML_CFG_PATH"
+        name  = "YAML_CFG_DIR"
         value = "/etc/secrets/config.yaml"
       }
 
@@ -101,8 +101,8 @@ resource "google_cloud_run_v2_service" "backend" {
         mount_path = "/certs"
       }
       volume_mounts {
-        mount_path = "config-vol"
-        name       = "/ect/secrets"
+        name       = "config-vol"
+        mount_path = "/etc/secrets"
       }
     }
 

@@ -12,6 +12,7 @@ type Config struct {
 
 type AppConfig struct {
 	ID              string `yaml:"id" env:"APP_ID" envDefault:"api"`
+	Port            string `yaml:"port" env:"APP_PORT" envDefault:"8080"`
 	Environment     string `yaml:"env" env:"APP_ENV" envDefault:"development"`
 	NumberOfWorkers int    `yaml:"number_of_workers" env:"NUMBER_OF_WORKERS" envDefault:"1"`
 

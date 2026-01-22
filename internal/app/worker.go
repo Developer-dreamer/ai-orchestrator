@@ -14,14 +14,16 @@ import (
 	"errors"
 	"google.golang.org/genai"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func(context.Context) error) {
-	redisClient, err := connector.ConnectToRedis(cfg.Redis.URI)
+	redisClient, err := connector.ConnectToRedis(cfg.App.Environment, cfg.Redis.URI)
 	if err != nil {
 		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
@@ -80,7 +82,7 @@ func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func
 	return workers, closer
 }
 
-func StartWorkers(logger *slog.Logger, workers []*prompt2.Consumer, tracerShutdown func(context.Context) error) {
+func StartWorkers(logger *slog.Logger, cfg *worker.Config, workers []*prompt2.Consumer, tracerShutdown func(context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -89,13 +91,16 @@ func StartWorkers(logger *slog.Logger, workers []*prompt2.Consumer, tracerShutdo
 
 	go func() {
 		sig := <-sigChan
-		logger.Info("Received termination signal. Stopping worker...", "signal", sig)
+		logger.Info("Received termination signal. Stopping workers...", "signal", sig)
 		cancel()
 	}()
 
-	var wg sync.WaitGroup
+	go addHealthCheck(logger, &cfg.App)
 
-	for _, worker := range workers {
+	var wg sync.WaitGroup
+	logger.Info("Starting workers...", "numberOfWorkers", len(workers))
+
+	for _, w := range workers {
 		wg.Add(1)
 
 		go func(w *prompt2.Consumer) {
@@ -103,19 +108,41 @@ func StartWorkers(logger *slog.Logger, workers []*prompt2.Consumer, tracerShutdo
 
 			if err := w.Consume(ctx); err != nil {
 				if !errors.Is(err, context.Canceled) {
-					logger.Error("WorkerConfig failed with error", "id", w.WorkerID, "error", err)
+					logger.Error("Worker failed", "id", w.WorkerID, "error", err)
 				}
 			}
-
-			logger.Info("WorkerConfig stopped gracefully", "id", w.WorkerID)
-		}(worker)
+			logger.Info("Worker stopped gracefully", "id", w.WorkerID)
+		}(w)
 	}
 
 	logger.Info("All workers are running. Waiting for tasks...")
+
 	wg.Wait()
 
-	if err := tracerShutdown(ctx); err != nil {
-		logger.Error("error occurred when shutting down tracer", "error", err)
+	logger.Info("Shutting down tracer...")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := tracerShutdown(shutdownCtx); err != nil {
+		logger.Error("Error occurred when shutting down tracer", "error", err)
 	}
+
 	logger.Info("System shutdown complete.")
+}
+
+func addHealthCheck(logger *slog.Logger, cfg *worker.AppConfig) {
+	server := &http.Server{
+		Addr: ":" + cfg.Port,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Worker is running"))
+		}),
+	}
+
+	logger.Info("Starting health check server", "port", cfg.Port)
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Error("Failed to start health check server", "error", err)
+		os.Exit(1)
+	}
 }

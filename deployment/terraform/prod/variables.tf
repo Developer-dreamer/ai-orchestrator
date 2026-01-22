@@ -24,7 +24,7 @@ variable "region" {
 variable "terraform_api_service_account" {
   description = "The service account used for Terraform operations"
   type        = string
-  default     = "ai-orchestrator@poised-graph-484915-a3.iam.gserviceaccount.com"
+  default     = "ai-orchestrator-api@poised-graph-484915-a3.iam.gserviceaccount.com"
 }
 
 variable "terraform_worker_service_account" {
@@ -36,13 +36,19 @@ variable "terraform_worker_service_account" {
 variable "environment" {
   description = "The environment app is running in"
   type        = string
-  default     = "development"
+  default     = "production"
+}
+
+variable "repo_name" {
+  description = "Artifacts repository where the image is located"
+  type        = string
+  default     = "ai-orchestrator"
 }
 
 variable "number_of_workers" {
   description = "The number of workers used to process AI requests"
   type        = number
-  default     = 1
+  default     = 5
 }
 
 variable "db_name" {

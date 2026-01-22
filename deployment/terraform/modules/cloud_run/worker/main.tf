@@ -57,7 +57,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.service_name}/app:${var.app_version}"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}/worker:${var.app_version}"
 
       resources {
         limits = {
@@ -71,7 +71,7 @@ resource "google_cloud_run_v2_service" "backend" {
         value = data.google_secret_manager_secret_version.gemini_api_key.secret_data
       }
       env {
-        name  = "YAML_CFG_PATH"
+        name  = "YAML_CFG_DIR"
         value = "/etc/secrets/config.yaml"
       }
 
@@ -80,8 +80,8 @@ resource "google_cloud_run_v2_service" "backend" {
         mount_path = "/certs"
       }
       volume_mounts {
-        mount_path = "config-vol"
-        name       = "/ect/secrets"
+        name       = "config-vol"
+        mount_path = "/etc/secrets"
       }
     }
 

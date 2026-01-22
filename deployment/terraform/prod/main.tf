@@ -49,7 +49,6 @@ module "secrets" {
   db_user                      = var.db_user
   db_password                  = var.db_password
   region                       = var.region
-  memstore_name                = module.memory_store.memstore_name
   redis_ca_cert                = module.memory_store.server_ca_certs[0].cert
   gemini_api_key               = var.gemini_api_key
 
@@ -64,14 +63,14 @@ module "api" {
   app_version           = var.app_version
   service_account_email = module.iam_api.cloud_run_service_account_email
   region                = var.region
-
-  environment          = var.environment
-  app_config_secret_id = module.secrets.api_config_id
+  repo_name             = var.repo_name
+  environment           = var.environment
+  app_config_secret_id  = module.secrets.api_config_id
 
   db_connection_name = module.cloud_sql.db_connection_name
-  db_name            = var.db_user
+  db_name            = var.db_name
   db_pass_secret_id  = module.secrets.db_pass_secret_id
-  db_user            = var.db_name
+  db_user            = var.db_user
 
   redis_host      = module.memory_store.memstore_connection_string
   redis_secret_id = module.secrets.redis_secret_id
@@ -92,12 +91,12 @@ module "worker" {
   app_version           = var.app_version
   service_account_email = module.iam_worker.cloud_run_service_account_email
   region                = var.region
-
-  environment          = var.environment
-  app_config_secret_id = module.secrets.worker_config_id
-  number_of_workers    = var.number_of_workers
-  redis_host           = module.memory_store.memstore_connection_string
-  redis_secret_id      = module.secrets.redis_secret_id
+  repo_name             = var.repo_name
+  environment           = var.environment
+  app_config_secret_id  = module.secrets.worker_config_id
+  number_of_workers     = var.number_of_workers
+  redis_host            = module.memory_store.memstore_connection_string
+  redis_secret_id       = module.secrets.redis_secret_id
 
   vpc_connector_name = module.vpc.vpc_connector_name
 

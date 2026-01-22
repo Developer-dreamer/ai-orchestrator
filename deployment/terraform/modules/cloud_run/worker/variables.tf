@@ -25,6 +25,10 @@ variable "app_version" {
   type        = string
 }
 
+variable "repo_name" {
+  description = "Artifacts repository where the image is located"
+  type        = string
+}
 
 # ===== APP CONFIGURATION =====
 
