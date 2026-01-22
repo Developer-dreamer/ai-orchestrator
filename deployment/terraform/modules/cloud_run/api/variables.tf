@@ -1,4 +1,4 @@
-# ===== CLOUD PROJECT CONFIGURATIONS ======
+# ===== TERRAFORM ======
 
 variable "service_name" {
   description = "The name of the service"
@@ -31,7 +31,7 @@ variable "repo_name" {
 }
 
 
-# ===== APP CONFIGURATION =====
+# ===== APP =====
 
 variable "environment" {
   description = "The environment the app is being run inside"
@@ -44,7 +44,7 @@ variable "app_config_secret_id" {
 }
 
 
-# ===== POSTGRES CONFIGURATION =====
+# ===== POSTGRES =====
 
 variable "db_user" {
   description = "The user of PostgreSQL inside CloudSQL container"
@@ -67,7 +67,7 @@ variable "db_pass_secret_id" {
 }
 
 
-# ===== REDIS CONFIGURATION =====
+# ===== REDIS =====
 
 variable "redis_host" {
   description = "The host of Redis instance"
@@ -80,7 +80,7 @@ variable "redis_secret_id" {
 }
 
 
-# ===== VPC CONFIGURATION =====
+# ===== VPC =====
 
 variable "vpc_connector_name" {
   description = "The connector name of the internal network used for 'app -> redis' secure connection"

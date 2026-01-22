@@ -1,3 +1,5 @@
+# ===== TERRAFORM =====
+
 variable "service_name" {
   description = "The name of the service"
   type        = string
@@ -14,9 +16,17 @@ variable "database_version" {
   type        = string
 }
 
+
+# ===== POSTGRES =====
+
 variable "tier" {
   default     = "db-custom-1-3840"
   description = "The instance size"
+  type        = string
+}
+
+variable "db_name" {
+  description = "PostgreSQL database name"
   type        = string
 }
 
@@ -26,10 +36,8 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "db_name" {
-  description = "PostgreSQL database name"
-  type        = string
-}
+
+# ===== VPC =====
 
 variable "vpc_id" {
   description = "PostgreSQL private IP"

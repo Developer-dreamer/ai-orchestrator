@@ -1,3 +1,5 @@
+# ===== TERRAFORM CONFIGURATION =====
+
 variable "project_id" {
   description = "The ID of the GCP project"
   type        = string
@@ -24,19 +26,11 @@ variable "region" {
 variable "terraform_api_service_account" {
   description = "The service account used for Terraform operations"
   type        = string
-  default     = "ai-orchestrator-api@poised-graph-484915-a3.iam.gserviceaccount.com"
 }
 
 variable "terraform_worker_service_account" {
   description = "The service account used for Terraform operations"
   type        = string
-  default     = "ai-orchestrator-worker@poised-graph-484915-a3.iam.gserviceaccount.com"
-}
-
-variable "environment" {
-  description = "The environment app is running in"
-  type        = string
-  default     = "production"
 }
 
 variable "repo_name" {
@@ -45,11 +39,20 @@ variable "repo_name" {
   default     = "ai-orchestrator"
 }
 
-variable "number_of_workers" {
-  description = "The number of workers used to process AI requests"
-  type        = number
-  default     = 5
+variable "app_version" {
+  description = "Current version of deploy"
+  type        = string
 }
+
+# ===== COMMON =====
+
+variable "environment" {
+  description = "The environment app is running in"
+  type        = string
+  default     = "production"
+}
+
+# ===== API =====
 
 variable "db_name" {
   description = "The database name for CloudSQL PostgreSQL instance"
@@ -67,9 +70,13 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "app_version" {
-  description = "Current version of deploy"
-  type        = string
+
+# ===== WORKER =====
+
+variable "number_of_workers" {
+  description = "The number of workers used to process AI requests"
+  type        = number
+  default     = 5
 }
 
 variable "gemini_api_key" {

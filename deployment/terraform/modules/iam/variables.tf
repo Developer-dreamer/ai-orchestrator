@@ -12,8 +12,3 @@ variable "service_account_email" {
   description = "The email of the service account"
   type        = string
 }
-
-variable "region" {
-  description = "The region for the GCP resources"
-  type        = string
-}

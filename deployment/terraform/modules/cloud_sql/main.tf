@@ -12,6 +12,7 @@ resource "google_sql_database_instance" "default" {
 
 
   settings {
+    activation_policy = "NEVER"
     tier = var.tier
 
     ip_configuration {

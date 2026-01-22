@@ -1,4 +1,4 @@
-# ===== CLOUD PROJECT CONFIGURATIONS ======
+# ===== TERRAFORM ======
 
 variable "service_name" {
   description = "The name of the service"
@@ -30,7 +30,8 @@ variable "repo_name" {
   type        = string
 }
 
-# ===== APP CONFIGURATION =====
+
+# ===== APP =====
 
 variable "environment" {
   description = "The environment the app is being run inside"
@@ -47,7 +48,13 @@ variable "number_of_workers" {
   type        = string
 }
 
-# ===== REDIS CONFIGURATION =====
+variable "gemini_api_key_secret_id" {
+  description = "The key used to make API requests to Gemini models"
+  type        = string
+}
+
+
+# ===== REDIS =====
 
 variable "redis_host" {
   description = "The host of Redis instance"
@@ -60,17 +67,9 @@ variable "redis_secret_id" {
 }
 
 
-# ===== VPC CONFIGURATION =====
+# ===== VPC =====
 
 variable "vpc_connector_name" {
   description = "The connector name of the internal network used for 'app -> redis' secure connection"
-  type        = string
-}
-
-
-# ===== Gemini API key =====
-
-variable "gemini_api_key_secret_id" {
-  description = "The key used to make API requests to Gemini models"
   type        = string
 }
