@@ -1,0 +1,38 @@
+app:
+  id: "${service_name}_worker"
+  port: "8080"
+  env: "${environment}"
+  number_of_workers: ${number_of_workers}
+
+  backoff:
+    min: "1s"
+    max: "60s"
+    factor: 2.0
+    poll_interval: "50ms"
+    max_retries: 5
+
+redis:
+  uri: "${redis_host}"
+
+  sub_stream:
+    id: "${redis_sub_stream_id}"
+
+    max_backlog: 1000
+    use_del_approx: true
+    read_count: 1
+    block_time: "5s"
+
+    group:
+      id: "${redis_consumer_group}"
+      consumer_primarily_id: "${worker_id}"
+
+  pub_stream:
+    id: "${redis_pub_stream_id}"
+
+    max_backlog: 1000
+    use_del_approx: true
+    read_count: 1
+    block_time: "5s"
+
+otel:
+  uri: "${otel_collector_uri}"

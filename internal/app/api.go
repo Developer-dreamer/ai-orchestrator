@@ -30,7 +30,7 @@ import (
 )
 
 func SetupHttpServer(cfg *api.Config, l *slog.Logger) (*http.Server, *manager.Relay, *stream.Consumer, func(context.Context) error) {
-	redisClient, err := connector.ConnectToRedis(cfg.Redis.URI)
+	redisClient, err := connector.ConnectToRedis(cfg.App.Environment, cfg.Redis.URI)
 	if err != nil {
 		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)

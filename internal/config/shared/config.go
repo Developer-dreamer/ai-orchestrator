@@ -31,11 +31,11 @@ type CacheConfig struct {
 }
 
 type BackoffConfig struct {
-	Min          time.Duration `yaml:"min"`
-	Max          time.Duration `yaml:"max"`
-	Factor       float64       `yaml:"factor"`
-	PollInterval time.Duration `yaml:"poll_interval"`
-	MaxRetries   int           `yaml:"max_retries"`
+	Min          time.Duration `yaml:"min" env:"BACKOFF_MIN" env-default:"1s"`
+	Max          time.Duration `yaml:"max" env:"BACKOFF_MAX" env-default:"60s"`
+	Factor       float64       `yaml:"factor" env:"BACKOFF_FACTOR" env-default:"2"`
+	PollInterval time.Duration `yaml:"poll_interval" env:"POLL_INTERVAL" env-default:"1s"`
+	MaxRetries   int           `yaml:"max_retries" env:"MAX_RETRIES" env-default:"5"`
 }
 
 type OtelConfig struct {

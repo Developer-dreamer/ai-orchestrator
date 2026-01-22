@@ -3,6 +3,7 @@ package api
 import (
 	"ai-orchestrator/internal/config/shared"
 	"fmt"
+	"strings"
 )
 
 type Config struct {
@@ -30,5 +31,15 @@ type PostgresConfig struct {
 }
 
 func (pc PostgresConfig) GetConnectionString() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
+	if strings.HasPrefix(pc.Host, "/") {
+		return fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s sslmode=disable",
+			pc.Host, pc.User, pc.Password, pc.DBName,
+		)
+	}
+
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		pc.User, pc.Password, pc.Host, pc.Port, pc.DBName,
+	)
 }
