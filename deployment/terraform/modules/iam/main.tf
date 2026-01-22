@@ -9,12 +9,6 @@ resource "google_service_account" "cloud_run" {
   depends_on = [google_project_service.iam]
 }
 
-resource "google_project_iam_member" "cloud_run" {
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
-  project = var.project_id
-  role    = "roles/run.admin"
-}
-
 # ===== CHECK IF NECESSARY =====
 resource "google_project_iam_member" "terraform_run_admin" {
   project = var.project_id
