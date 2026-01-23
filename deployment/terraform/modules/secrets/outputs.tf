@@ -32,3 +32,18 @@ output "gemini_api_key_secret_id" {
   description = "The key used to make API requests to Gemini models"
   value       = google_secret_manager_secret.gemini_api_key.id
 }
+
+output "otel_resource" {
+  description = "The Secret Manager ID containing OpenTelemetry resource attributes (e.g., service.name=my-app)"
+  value       = google_secret_manager_secret.otel_resource.id
+}
+
+output "otel_endpoint" {
+  description = "The Secret Manager ID containing the OpenTelemetry OTLP endpoint URL (e.g., https://otlp-gateway...)"
+  value       = google_secret_manager_secret.otel_endpoint.id
+}
+
+output "otel_headers" {
+  description = "The Secret Manager ID containing OpenTelemetry exporter headers, specifically the Authorization token"
+  value       = google_secret_manager_secret.otel_headers.id
+}
