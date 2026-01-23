@@ -123,3 +123,79 @@ resource "google_secret_manager_secret_iam_member" "secretaccess_compute_gemini_
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.worker_service_account_email}"
 }
+
+
+resource "google_secret_manager_secret" "otel_resource" {
+  secret_id = "otel_resource"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.secretmanager_api]
+}
+
+resource "google_secret_manager_secret_version" "otel_resource_data" {
+  secret      = google_secret_manager_secret.otel_resource.id
+  secret_data = var.otel_resource
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_resource_api" {
+  secret_id = google_secret_manager_secret.otel_resource.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.api_service_account_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_resource_worker" {
+  secret_id = google_secret_manager_secret.otel_resource.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.worker_service_account_email}"
+}
+
+resource "google_secret_manager_secret" "otel_endpoint" {
+  secret_id = "otel_endpoint"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.secretmanager_api]
+}
+
+resource "google_secret_manager_secret_version" "otel_endpoint_data" {
+  secret      = google_secret_manager_secret.otel_endpoint.id
+  secret_data = var.otel_endpoint
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_endpoint_api" {
+  secret_id = google_secret_manager_secret.otel_endpoint.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.api_service_account_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_endpoint_worker" {
+  secret_id = google_secret_manager_secret.otel_endpoint.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.worker_service_account_email}"
+}
+
+resource "google_secret_manager_secret" "otel_headers" {
+  secret_id = "otel_headers"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.secretmanager_api]
+}
+
+resource "google_secret_manager_secret_version" "otel_headers_data" {
+  secret      = google_secret_manager_secret.otel_headers.id
+  secret_data = var.otel_headers
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_headers_api" {
+  secret_id = google_secret_manager_secret.otel_headers.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.api_service_account_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "secretaccess_compute_otel_headers_worker" {
+  secret_id = google_secret_manager_secret.otel_headers.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.worker_service_account_email}"
+}

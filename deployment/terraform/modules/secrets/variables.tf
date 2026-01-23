@@ -43,6 +43,24 @@ variable "redis_ca_cert" {
 }
 
 
+# ===== OTEL =====
+
+variable "otel_resource" {
+  description = "The Secret Manager ID containing OpenTelemetry resource attributes (e.g., service.name=my-app)"
+  type        = string
+}
+
+variable "otel_endpoint" {
+  description = "The Secret Manager ID containing the OpenTelemetry OTLP endpoint URL (e.g., https://otlp-gateway...)"
+  type        = string
+}
+
+variable "otel_headers" {
+  description = "The Secret Manager ID containing OpenTelemetry exporter headers, specifically the Authorization token"
+  type        = string
+}
+
+
 # ===== GEMINI API KEY =====
 
 variable "gemini_api_key" {
