@@ -104,6 +104,10 @@ BODY:
 
 Click *Send* and switch to the WebSocket tab. After a certain amount of time (2-10 seconds) you will see the response.
 
+> [!NOTE]
+> If you want to test my cloud running app, here is the link you should replace *localhost* with: https://ai-orchestrator-api-558611855109.us-central1.run.app
+> Everything else should stay the same
+
 ## Observability & Distributed Tracing
 
 ### Local setup
