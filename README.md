@@ -1,13 +1,5 @@
 # AI-orchestration system
 
-> [!NOTE]
-> Ongoing Development: **Infrastructure-as-Code**
-> 
-> I am currently working on automated cloud provisioning using Terraform and GCP. 
-> To maintain the stability of the main branch, this feature is being developed in a dedicated branch.
-> 
-> 🔗 Check progress here: [deployment/gcp-terraform](https://github.com/Developer-dreamer/ai-orchestrator/tree/deployment/gcp-terraform)
-
 ## The app
 
 This app is a distributed AI orchestration system designed for asynchronous prompt processing, allowing users to run tasks or conduct long-term research. 
@@ -53,6 +45,7 @@ when a user gets two different responses on a single prompt, even if the prompt 
 
 ## Deployment
 
+### Docker | Local
 Docker deployment files are located in the [deployment/docker](deployment/docker) folder. 
 To run the compose file, you are supposed to create `.api_env` and `.worker_env` files in the root directory of the project, with the
 next variables:
@@ -84,6 +77,9 @@ The app should start with the appropriate message.
 Make a `GET` request via **Postman** or any other tool you like to the `http://localhost:8080/health` endpoint. 
 If response **200**, everything is fine.
 
+### Terraform | Google Cloud Platform
+
+Everything you should know about a deployment process on GCP is described here: [README.md](deployment/terraform/prod/README.md)
 ## Use
 
 > For this section, I will use explanation on Postman example.
@@ -110,6 +106,7 @@ Click *Send* and switch to the WebSocket tab. After a certain amount of time (2-
 
 ## Observability & Distributed Tracing
 
+### Local setup
 The distributed tracing is implemented using OpenTelemetry and Grafana + Tempo.
 To view the traces, you need to open `http://localhost:3000`, then in the login panel, enter the following credentials:
 ```
@@ -124,3 +121,17 @@ Here it is: if you've done everything correctly, you should see some logs.
 
 > [!NOTE]
 > In case of any errors, you may check this link: [How to setup observability of Golang microservices using Jaeger, OTEL-collector, Tempo & Grafana](https://medium.com/@vahagn.mian/how-to-setup-observability-of-golang-microservices-using-jaeger-otel-collector-tempo-grafana-b502e72f2bf3)
+
+### Cloud setup
+The decision was made to not use GCP Tracing. Since the Grafana is universal and may be used in any Cloud Environment, by just simply sending traces on OpenTelemetry endpoint, I decided to stick with the current setup.
+For this I should visit [Grafana Site](https://grafana.com/), create an account and process with the configuration it suggests. The configuration process is intuitive and even simpler than local setup.
+After finishing, you will obtain 3 environment variables, you should then use to send data to Grafana:
+```dotenv
+OTEL_RESOURCE_ATTRIBUTES="service.name=<your-service-id>"
+OTEL_EXPORTER_OTLP_ENDPOINT="<your-configured-endpoint>"
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <your-secret-token>"
+```
+
+After you've set up them inside project and run some requests, go to **Explore** tab, select **Tempo** in top-left corner and run query to see the traces.
+Everything should look like this:
+![Grafana dashboard](doc/screenshot/grafana-tempo-traces.png)
