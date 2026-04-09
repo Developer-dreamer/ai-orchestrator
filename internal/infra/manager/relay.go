@@ -80,7 +80,7 @@ func (r *Relay) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			r.logger.Info("Stopping producer")
 			return ctx.Err()
-		default:
+		case <-ticker.C:
 			events, err := r.repo.GetAllPendingEvents(ctx, maxEvents)
 			if err != nil {
 				newBackOff, backOffErr := r.backOff(ctx, currentBackoff)
