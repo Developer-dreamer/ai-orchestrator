@@ -84,3 +84,21 @@ variable "gemini_api_key" {
   type        = string
   sensitive   = true
 }
+
+# ===== OTEL =====
+
+variable "otel_resource_attributes" {
+  description = "The Secret Manager ID containing OpenTelemetry resource attributes (e.g., service.name=my-app)"
+  type        = string
+}
+
+variable "otel_exporter_otlp_endpoint" {
+  description = "The Secret Manager ID containing the OpenTelemetry OTLP endpoint URL (e.g., https://otlp-gateway...)"
+  type        = string
+}
+
+variable "otel_exporter_otlp_headers" {
+  description = "The Secret Manager ID containing OpenTelemetry exporter headers, specifically the Authorization token"
+  type        = string
+  sensitive   = true
+}

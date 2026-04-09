@@ -30,12 +30,14 @@ import (
 )
 
 func SetupHttpServer(cfg *api.Config, l *slog.Logger) (*http.Server, *manager.Relay, *stream.Consumer, func(context.Context) error) {
+	ctx := context.Background()
+
 	redisClient, err := connector.ConnectToRedis(cfg.App.Environment, cfg.Redis.URI)
 	if err != nil {
 		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	closer, err := setup.InitTracer(cfg.App.ID, cfg.OTEL.URI)
+	closer, err := setup.InitTracer(ctx, cfg.App.Environment, cfg.App.ID, cfg.OTEL.URI)
 	if err != nil {
 		l.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)

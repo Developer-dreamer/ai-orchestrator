@@ -3,7 +3,6 @@ module "iam_api" {
   project_id   = var.project_id
   service_name = var.api_service_name
 
-  region                = var.region
   service_account_email = var.terraform_api_service_account
 }
 
@@ -12,7 +11,6 @@ module "iam_worker" {
   project_id   = var.project_id
   service_name = var.worker_service_name
 
-  region                = var.region
   service_account_email = var.terraform_worker_service_account
 }
 
@@ -51,6 +49,9 @@ module "secrets" {
   region                       = var.region
   redis_ca_cert                = module.memory_store.server_ca_certs[0].cert
   gemini_api_key               = var.gemini_api_key
+  otel_resource                = var.otel_resource_attributes
+  otel_endpoint                = var.otel_exporter_otlp_endpoint
+  otel_headers                = var.otel_exporter_otlp_headers
 
   depends_on = [module.iam_api, module.iam_worker, module.memory_store]
 }
@@ -77,6 +78,10 @@ module "api" {
 
   vpc_connector_name = module.vpc.vpc_connector_name
 
+  otel_resource_secret_id = module.secrets.otel_resource
+  otel_endpoint_secret_id = module.secrets.otel_endpoint
+  otel_headers_secret_id = module.secrets.otel_headers
+
   depends_on = [
     module.cloud_sql,
     module.memory_store,
@@ -101,6 +106,10 @@ module "worker" {
   vpc_connector_name = module.vpc.vpc_connector_name
 
   gemini_api_key_secret_id = module.secrets.gemini_api_key_secret_id
+
+  otel_resource_secret_id = module.secrets.otel_resource
+  otel_endpoint_secret_id = module.secrets.otel_endpoint
+  otel_headers_secret_id = module.secrets.otel_headers
 
   depends_on = [
     module.cloud_sql,

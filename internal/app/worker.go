@@ -23,17 +23,18 @@ import (
 )
 
 func SetupWorkers(cfg *worker.Config, l *slog.Logger) ([]*prompt2.Consumer, func(context.Context) error) {
+	ctx := context.Background()
+
 	redisClient, err := connector.ConnectToRedis(cfg.App.Environment, cfg.Redis.URI)
 	if err != nil {
 		l.Error("Failed to initiate redis. Server shutdown.", "error", err)
 		os.Exit(1)
 	}
-	closer, err := setup.InitTracer(cfg.App.ID, cfg.OTEL.URI)
+	closer, err := setup.InitTracer(ctx, cfg.App.Environment, cfg.App.ID, cfg.OTEL.URI)
 	if err != nil {
 		l.Error("Failed to initiate tracer.", "error", err)
 		os.Exit(1)
 	}
-	ctx := context.Background()
 	client, err := genai.NewClient(ctx, nil)
 	if err != nil {
 		l.Error("Failed to initiate client.", "error", err)

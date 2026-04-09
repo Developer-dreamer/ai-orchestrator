@@ -50,6 +50,10 @@ TF_VAR_db_user=<your-user>
 TF_VAR_db_password=<your-secret-password> # use here letters (lower/uppercase) and numbers only
 
 TF_VAR_gemini_api_key=<your-secret-apikey>
+
+TF_VAR_otel_resource_attributes=service.name=<your-service-name>
+TF_VAR_otel_exporter_otlp_endpoint=<your0configured-endpoint>
+TF_VAR_otel_exporter_otlp_headers=Authorization=Basic <your-secret-token>
 ```
 
 After you filled the `.terraform.env` file, run:
@@ -133,3 +137,40 @@ terraform apply
 ```
 It will prompt you whether you are sure you want to apply those changes, so just type yes, and that's it.
 
+## Managing
+
+If you do not want to spend money and use cloud resources, you should change next variables:
+
+**[cloud-run/api](../modules/cloud_run/api/main.tf)**
+```terraform
+scaling {
+    min_instance_count = 0
+}
+```
+This block will say terraform that if there are no requests on API, it may shut the container down. But be aware of cold starts if new request comes, so it will be processed longer.
+
+The same applies to **[cloud-run/worker](../modules/cloud_run/worker/main.tf)**
+
+Also, you may want to shut down db, without deleting it. To do so, change this block:
+
+**[cloud-sql](../modules/cloud_sql/main.tf)**
+```terraform
+settings {
+  # ... some config here ...
+  activation_policy = "NEVER"
+  # ... some config here ...
+}
+```
+This will shut down db, but if any request comes to an API and you haven't turned the db on manually (by changing NEVER → ALWAYS), the API service will fail to connect to cloudSQL instance.
+
+To any of these configurations be applied you must run again:
+```bash
+terraform apply
+```
+
+## Destroy
+
+Just run the next command:
+```bash
+terraform destroy
+```

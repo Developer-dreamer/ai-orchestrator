@@ -80,6 +80,24 @@ variable "redis_secret_id" {
 }
 
 
+# ===== OTEL =====
+
+variable "otel_resource_secret_id" {
+  description = "The Secret Manager ID containing OpenTelemetry resource attributes (e.g., service.name=my-app)"
+  type        = string
+}
+
+variable "otel_endpoint_secret_id" {
+  description = "The Secret Manager ID containing the OpenTelemetry OTLP endpoint URL (e.g., https://otlp-gateway...)"
+  type        = string
+}
+
+variable "otel_headers_secret_id" {
+  description = "The Secret Manager ID containing OpenTelemetry exporter headers, specifically the Authorization token"
+  type        = string
+}
+
+
 # ===== VPC =====
 
 variable "vpc_connector_name" {

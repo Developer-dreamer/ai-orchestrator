@@ -30,11 +30,11 @@ resource "google_secret_manager_secret_version" "app_config" {
 
 resource "google_cloud_run_v2_service" "backend" {
   location = var.region
-  name     = "${var.service_name}-worker"
+  name     = var.service_name
   ingress  = local.traffic_type
 
   labels = {
-    "app" = "${var.service_name}-worker"
+    "app" = var.service_name
   }
 
   scaling {
@@ -68,7 +68,39 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "GEMINI_API_KEY"
-        value = data.google_secret_manager_secret_version.gemini_api_key.secret_data
+        value_source {
+          secret_key_ref {
+            secret = var.gemini_api_key_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "OTEL_RESOURCE_ATTRIBUTES"
+        value_source {
+          secret_key_ref {
+            secret = var.otel_resource_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value_source {
+          secret_key_ref {
+            secret = var.otel_endpoint_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "OTEL_EXPORTER_OTLP_HEADERS"
+        value_source {
+          secret_key_ref {
+            secret = var.otel_headers_secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "YAML_CFG_DIR"
